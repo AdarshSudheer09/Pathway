@@ -73,3 +73,11 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+# Backup files
+*.backup
+*.bak*
+Gemfile.lock
+package-lock.json
+yarn.lock
+ios/Podfile.lock
+ios/*.log
