@@ -1,6 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import firestore from '@react-native-firebase/firestore';
-import auth from '@react-native-firebase/auth';
 import { Activity, Honor, UserProfile, College, Project } from '../types';
 
 const STORAGE_KEYS = {
@@ -13,78 +11,22 @@ const STORAGE_KEYS = {
 
 class DatabaseService {
 
-  // --- Core Storage Logic (Dual Mode) ---
+  // --- Core Storage Logic (Local AsyncStorage Only) ---
   private async getItem(key: string) {
-    const user = auth().currentUser;
-    if (user) {
-      try {
-        const doc = await firestore().collection('users').doc(user.uid).get();
-        if (doc.exists) {
-          return doc.data()?.[key] || null;
-        }
-        return null;
-      } catch (e) {
-        console.error('Firestore get error', e);
-        return null;
-      }
-    } else {
-      // Guest Mode
-      try {
-        const data = await AsyncStorage.getItem(key);
-        return data ? JSON.parse(data) : null;
-      } catch (e) {
-        console.error('AsyncStorage get error', e);
-        return null;
-      }
+    try {
+      const data = await AsyncStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.error('AsyncStorage get error', e);
+      return null;
     }
   }
 
   private async setItem(key: string, value: any) {
-    const user = auth().currentUser;
-    if (user) {
-      try {
-        await firestore().collection('users').doc(user.uid).set({
-          [key]: value
-        }, { merge: true });
-      } catch (e) {
-        console.error('Firestore save error', e);
-      }
-    } else {
-      // Guest Mode
-      try {
-        await AsyncStorage.setItem(key, JSON.stringify(value));
-      } catch (e) {
-        console.error('AsyncStorage save error', e);
-      }
-    }
-  }
-
-  // --- Cloud Sync Feature ---
-  // Call this after successful login to migrate local data to cloud
-  async syncToCloud() {
-    const user = auth().currentUser;
-    if (!user) return;
-
     try {
-      const profile = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE);
-      const activities = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVITIES);
-      const honors = await AsyncStorage.getItem(STORAGE_KEYS.HONORS);
-      const colleges = await AsyncStorage.getItem(STORAGE_KEYS.COLLEGES);
-      const projects = await AsyncStorage.getItem(STORAGE_KEYS.PROJECTS);
-
-      const batchData: any = {};
-      if (profile) batchData[STORAGE_KEYS.PROFILE] = JSON.parse(profile);
-      if (activities) batchData[STORAGE_KEYS.ACTIVITIES] = JSON.parse(activities);
-      if (honors) batchData[STORAGE_KEYS.HONORS] = JSON.parse(honors);
-      if (colleges) batchData[STORAGE_KEYS.COLLEGES] = JSON.parse(colleges);
-      if (projects) batchData[STORAGE_KEYS.PROJECTS] = JSON.parse(projects);
-
-      if (Object.keys(batchData).length > 0) {
-        await firestore().collection('users').doc(user.uid).set(batchData, { merge: true });
-        console.log("Synced local data to cloud for user " + user.uid);
-      }
+      await AsyncStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
-      console.error("Error syncing to cloud:", e);
+      console.error('AsyncStorage save error', e);
     }
   }
 

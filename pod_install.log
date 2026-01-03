@@ -1,0 +1,2 @@
+  $ /opt/homebrew/bin/node -p require.resolve(     "react-native/scripts/react_native_pods.rb",     {paths: [process.argv[1]]},   ) /Users/adarshsudheer/Documents/Personal/PATHWAY/ios
+  /Users/adarshsudheer/Documents/Personal/PATHWAY/node_modules/react-native/scripts/react_native_pods.rb

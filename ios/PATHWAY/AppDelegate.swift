@@ -1,6 +1,4 @@
 import UIKit
-import React
-import FirebaseCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, RCTBridgeDelegate {
@@ -11,7 +9,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, RCTBridgeDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    FirebaseApp.configure()
     
     bridge = RCTBridge(delegate: self, launchOptions: launchOptions)
     let rootView = RCTRootView(bridge: bridge, moduleName: "PATHWAY", initialProperties: nil)

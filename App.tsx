@@ -9,12 +9,9 @@ import {
   BookOpen, Clock, ChevronRight, User, School, FileText,
   TrendingUp, ArrowRight, Home, Download, Settings,
   Search, X, MapPin, DollarSign, RotateCcw, Gavel,
-  Lightbulb, ArrowLeft, CheckCircle2, AlertCircle, MessageCircle, Mic, StopCircle, Send, Star, LogOut
+  Lightbulb, ArrowLeft, CheckCircle2, AlertCircle, MessageCircle, Mic, StopCircle, Send, Star
 } from 'lucide-react-native';
-// Add these to your Services import:
 import { startInterview, continueInterview, generateInterviewFeedback } from './services/gemini';
-import { authService } from './services/auth';
-import { LoginScreen } from './LoginScreen';
 // --- IMPORTS FROM YOUR FILE STRUCTURE ---
 import { db } from './services/db';
 import {
@@ -94,7 +91,7 @@ const validateDateRange = (startDate: string | undefined, endDate: string | unde
 
 // --- SUB-COMPONENTS (UI Only) ---
 
-const TopBar = ({ setView, profile, onLogout }: any) => {
+const TopBar = ({ setView, profile }: any) => {
   const insets = useSafeAreaInsets();
   return (
     <View style={[s.topBar, { paddingTop: insets.top + 10 }]}>
@@ -423,28 +420,6 @@ const InterviewSection = ({ profile, activities, onActiveChange, onBack }: any) 
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
-  const [initializing, setInitializing] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [isGuest, setIsGuest] = useState(false);
-
-  function onAuthStateChanged(user: any) {
-    setUser(user);
-    if (initializing) setInitializing(false);
-    if (user) setIsGuest(false);
-  }
-
-  useEffect(() => {
-    return authService.subscribe(onAuthStateChanged);
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await authService.signOut();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   // 1. ALL HOOKS DEFINED UNCONDITIONALLY AT THE TOP
   const [view, setView] = useState('dashboard');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -819,16 +794,6 @@ export default function App() {
   };
 
   // 4. MAIN RENDER
-  if (initializing) return (
-    <View style={{ flex: 1, backgroundColor: '#18181b', justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" color="#ffffff" />
-    </View>
-  );
-
-  if (!user && !isGuest) {
-    return <LoginScreen onLoginSuccess={() => { } /* Auth listener handles this */} onSkip={() => setIsGuest(true)} />;
-  }
-
   return (
     <SafeAreaProvider>
       <View style={s.root}>
