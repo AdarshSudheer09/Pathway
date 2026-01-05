@@ -1,96 +1,20 @@
 require_relative '../node_modules/react-native/scripts/react_native_pods'
 
-platform :ios, '15.1' # Adjust this to your min_ios_version_supported
-prepare_react_native_project!
+platform :ios, "15.1"
+
+install! 'cocoapods', :deterministic_uuids => false
 
 target 'PATHWAY' do
-  config = use_native_modules!
-
   use_react_native!(
-    :path => config[:reactNativePath],
+    :path => '../node_modules/react-native',
     :hermes_enabled => true
   )
-
-
 
   post_install do |installer|
     react_native_post_install(
       installer,
-      config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      :ccache_enabled => true
+      '../node_modules/react-native',
+      :mac_catalyst_enabled => false
     )
-    
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        # Set C++ standard to C++20
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
-        
-        # Allow non-modular includes
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        
-        # Fix for Folly compilation issues
-        config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
-        config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/RCT-Folly"'
-        config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/Headers/Public/RCT-Folly"'
-        config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/boost"'
-        config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/DoubleConversion"'
-        config.build_settings['HEADER_SEARCH_PATHS'] << '"$(PODS_ROOT)/fmt/include"'
-        
-        # Preprocessor definitions to avoid glog conflicts
-        preprocessor_defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
-        if preprocessor_defs.is_a?(String)
-          preprocessor_defs = [preprocessor_defs]
-        end
-        # Remove any existing REACT_NATIVE_DEBUG definition to rely on flags.h logic
-        preprocessor_defs = preprocessor_defs.map { |x| x.to_s.include?('REACT_NATIVE_DEBUG') ? nil : x }.compact
-        
-        # Force REACT_NATIVE_PRODUCTION to disable internal asserts (bypass glog issues)
-        preprocessor_defs << 'REACT_NATIVE_PRODUCTION=1' unless preprocessor_defs.any? { |x| x.to_s.include?('REACT_NATIVE_PRODUCTION') }
-        
-        preprocessor_defs << 'FOLLY_NO_CONFIG=1' unless preprocessor_defs.any? { |x| x.to_s.include?('FOLLY_NO_CONFIG') }
-        preprocessor_defs << 'FOLLY_MOBILE=1' unless preprocessor_defs.any? { |x| x.to_s.include?('FOLLY_MOBILE') }
-        preprocessor_defs << 'FOLLY_USE_LIBCPP=1' unless preprocessor_defs.any? { |x| x.to_s.include?('FOLLY_USE_LIBCPP') }
-        preprocessor_defs << 'FOLLY_HAS_COROUTINES=0' unless preprocessor_defs.any? { |x| x.to_s.include?('FOLLY_HAS_COROUTINES') }
-        preprocessor_defs << 'FOLLY_CFG_NO_COROUTINES=1' unless preprocessor_defs.any? { |x| x.to_s.include?('FOLLY_CFG_NO_COROUTINES') }
-        # preprocessor_defs << 'GLOG_NO_ABBREVIATED_SEVERITIES=1' unless preprocessor_defs.any? { |x| x.to_s.include?('GLOG_NO_ABBREVIATED_SEVERITIES') }
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = preprocessor_defs
-        
-        # Additional C++ flags
-        cflags = config.build_settings['OTHER_CPLUSPLUSFLAGS'] || '$(inherited)'
-        if cflags.is_a?(String)
-            cflags = cflags.split(' ')
-        end
-        flags_to_add = [
-            '-DFOLLY_NO_CONFIG=1', 
-            '-DFOLLY_MOBILE=1', 
-            '-DFOLLY_USE_LIBCPP=1',
-            '-DFOLLY_CFG_NO_COROUTINES=1',
-            '-DFOLLY_HAVE_CLOCK_GETTIME=1',
-            '-DGOOGLE_GLOG_DLL_DECL='
-        ]
-        flags_to_add.each do |flag|
-            cflags << flag unless cflags.include?(flag)
-        end
-        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = cflags
-        
-        # Disable warnings as errors for specific pods to avoid build failures
-        if ['RCT-Folly', 'fmt', 'glog', 'boost', 'React-Fabric'].include?(target.name)
-          config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
-          config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
-        end
-      end
-
-      # Exclude FuseboxTracer.cpp from React-perflogger to avoid folly/coro issues
-      # if target.name == 'React-perflogger'
-      #   target.source_build_phase.files.each do |build_file|
-      #     if build_file.file_ref.path.include?('FuseboxTracer.cpp')
-      #       target.source_build_phase.files.delete(build_file)
-      #     end
-      #   end
-      # end
-
-
-    end
   end
 end
