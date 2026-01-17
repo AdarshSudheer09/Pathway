@@ -37,8 +37,8 @@ Metro.runServer(config, {
     // Get message socket for device communication
     let messageSocket = null;
     try {
-        const middleware = Metro.createConnectMiddleware({ server });
-        messageSocket = middleware.messageSocket;
+        // Access messageSocket directly from server instance
+        messageSocket = server.messageSocket;
     } catch (err) {
         terminal.log('Note: Interactive commands (r/d) require device connection');
     }

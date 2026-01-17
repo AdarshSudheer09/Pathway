@@ -88,13 +88,13 @@ const RANK_RUBRIC = `
 `;
 
 // --- UNIVERSAL LOCAL AI BRIDGE (FOUNDATION MODELS) ---
-console.log("--------------------------------------------------");
-console.log("AVAILABLE MODULES:", Object.keys(NativeModules).filter(key => key.includes("Local")));
-console.log("--------------------------------------------------");
+// console.log("--------------------------------------------------");
+// console.log("AVAILABLE MODULES:", Object.keys(NativeModules).filter(key => key.includes("Local")));
+// console.log("--------------------------------------------------");
 const LocalLLM = NativeModules.LocalLLMBridge;
 
 const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any> => {
-  console.log(`[Foundation AI] Generating... Prompt length: ${prompt.length}`);
+  //console.log(`[Foundation AI] Generating... Prompt length: ${prompt.length}`);
   try {
     if (LocalLLM && LocalLLM.generateResponse) {
       // 1. Send the prompt to the on-device Foundation Model
@@ -385,6 +385,23 @@ export const analyzeCollegeChances = async (
   collegeName: string
 ): Promise<CollegeAnalysis> => {
 
+  // Check if profile has essential information filled out
+  const hasGpa = profile.gpa && profile.gpa.trim() !== '';
+  const hasActivities = activities && activities.length > 0;
+
+  if (!hasGpa || !hasActivities) {
+    return {
+      category: 'Reach',
+      probability: 'N/A',
+      reasoning: 'Please fill out your profile before checking admission chances. Make sure you have added your GPA and at least one activity to get an accurate analysis.',
+      tips: [
+        !hasGpa ? 'Add your GPA to your profile' : 'GPA provided ✓',
+        !hasActivities ? 'Add at least one extracurricular activity' : 'Activities added ✓',
+        'Complete your profile for the most accurate admission chance analysis'
+      ]
+    };
+  }
+
   // Fetch Real College Data FIRST
   const collegeInfo = COLLEGE_DATABASE[collegeName];
   const acceptanceRate = collegeInfo ? collegeInfo.acceptanceRate : "50%"; // Default to 50% if unknown
@@ -410,6 +427,9 @@ export const analyzeCollegeChances = async (
   const tier3Activities = activities.filter(a => a.tier === 3).length;
   const topTierCount = tier1Activities + tier2Activities + tier3Activities;
   const hasStrongECs = topTierCount >= 2; // 2+ activities in top 3 tiers = strong
+
+  // Check if ALL extracurriculars are tier 6 or worse (very weak ECs)
+  const hasOnlyLowTierECs = activities.length > 0 && activities.every(a => !a.tier || a.tier >= 6);
 
   // Determine if this is a T20 school (very competitive and prestigious)
   const isT20School = acceptanceRateNum < 10;
@@ -587,6 +607,7 @@ BE MERCILESS. "Good" is NOT enough. "Great" is NOT enough.
 - **STATS CHECK**:
   *   IF STATS BELOW AVERAGE: AUTOMATIC <5% (Ultra Reach). Stop here.
   *   IF STATS GOOD/PERFECT but Weak ECs (No Tier 1): Max 15-25% (Reach) -> NOT Ultra Reach.
+  ${hasOnlyLowTierECs ? `*   **CRITICAL: TIER 6+ ONLY PENALTY**: Student has ONLY Tier 6 or lower ECs (extremely weak).\n      → IF GPA < 3.7: AUTOMATIC Ultra Reach (<10%).\n      → IF GPA >= 3.7: AUTOMATIC Reach (11-20% max).\n      → These students lack ANY meaningful achievements. Be EXTREMELY harsh.` : ''}
 - "Well-Rounded": This is a weakness. We want a SPIKE (World-class talent).
 - 1 Tier 1 Activity: Competitive. 20-30% range (Reach).
 - "Well-Rounded": This is a weakness. We want a SPIKE (World-class talent).
@@ -610,6 +631,7 @@ IF STATS AT AVERAGE:
   
 IF STATS BELOW AVERAGE:
   → Reach (15-30%) or Ultra Reach (<15%).
+  ${hasOnlyLowTierECs ? `\n**TIER 6+ ONLY PENALTY**: Student has ONLY Tier 6 or lower ECs.\n  → IF GPA < 3.5: AUTOMATIC Reach (max 20%).\n  → IF GPA >= 3.5: AUTOMATIC Reach (max 30%).\n  → Lack of meaningful ECs is a serious weakness for selective schools.` : ''}
   
 ECs ONLY affect Target vs Safety, NOT whether you get in.` : acceptanceRateNum < 50 ? `**SELECTIVE MODE (30-50%): STATS ARE EVERYTHING**
 Tier 1-2 activities DON'T MATTER. GPA and SAT are PRIMARY.
