@@ -18,4 +18,11 @@ buildscript {
     }
 }
 
+// Force Java 17 for compatibility
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"
