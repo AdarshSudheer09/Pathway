@@ -115,8 +115,11 @@ android {
         }
     }
     packagingOptions {
+        pickFirst '**/libhermes.so'
+        pickFirst '**/libjsc.so'
+        pickFirst '**/libc++_shared.so'
         jniLibs {
-            excludes += ["**/libjsc.so"]
+            useLegacyPackaging = true
         }
     }
 }
@@ -126,4 +129,7 @@ dependencies {
     implementation("com.facebook.react:react-android")
 
     implementation("com.facebook.react:hermes-android")
+    
+    // Google Play Services for AICore access
+    implementation("com.google.android.gms:play-services-base:18.5.0")
 }

@@ -18,6 +18,7 @@ class MainApplication : Application(), ReactApplication {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).getPackages().apply {
               // Packages that cannot be autolinked yet can be added manually here
+              add(LocalLLMBridgePackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

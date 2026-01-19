@@ -806,7 +806,12 @@ export default function App() {
           <InterviewSection profile={profile} activities={activities} onActiveChange={setIsInterviewActive} onBack={() => setView('dashboard')} />
         ) : (
           <>
-            <ScrollView ref={scrollViewRef} contentContainerStyle={s.scrollContent}>
+            <ScrollView
+              ref={scrollViewRef}
+              contentContainerStyle={s.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
               {/* --- VIEW: DASHBOARD --- */}
               {view === 'dashboard' && (
                 <View style={s.container}>
@@ -948,154 +953,152 @@ export default function App() {
 
               {/* --- VIEW: EDITOR --- */}
               {view === 'editor' && editingActivity && (
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                  <View style={[s.container, { marginTop: 80 }]}>
-                    <TouchableOpacity onPress={() => setView('dashboard')} style={s.backBtn}>
-                      <ArrowLeft color="#a1a1aa" size={20} /><Text style={s.backTxt}>Back</Text>
-                    </TouchableOpacity>
+                <View style={[s.container, { marginTop: 80 }]}>
+                  <TouchableOpacity onPress={() => setView('dashboard')} style={s.backBtn}>
+                    <ArrowLeft color="#a1a1aa" size={20} /><Text style={s.backTxt}>Back</Text>
+                  </TouchableOpacity>
 
-                    <Text style={s.sectionTitle}>Core Details</Text>
-                    <Text style={s.label}>Role / Position</Text>
-                    <TextInput style={s.input} value={editingActivity.position} onChangeText={t => setEditingActivity({ ...editingActivity, position: t })} placeholder="Founder, Captain..." placeholderTextColor="#52525b" />
+                  <Text style={s.sectionTitle}>Core Details</Text>
+                  <Text style={s.label}>Role / Position</Text>
+                  <TextInput style={s.input} value={editingActivity.position} onChangeText={t => setEditingActivity({ ...editingActivity, position: t })} placeholder="Founder, Captain..." placeholderTextColor="#52525b" />
 
-                    <Text style={s.label}>Organization</Text>
-                    <TextInput style={s.input} value={editingActivity.organization} onChangeText={t => setEditingActivity({ ...editingActivity, organization: t })} placeholder="Club Name..." placeholderTextColor="#52525b" />
+                  <Text style={s.label}>Organization</Text>
+                  <TextInput style={s.input} value={editingActivity.organization} onChangeText={t => setEditingActivity({ ...editingActivity, organization: t })} placeholder="Club Name..." placeholderTextColor="#52525b" />
 
-                    <Text style={s.sectionTitle}>Time & Scope</Text>
-                    <Text style={s.label}>Grade Levels</Text>
-                    <View style={s.rowGap}>
-                      {[9, 10, 11, 12].map(g => (
-                        <TouchableOpacity key={g} onPress={() => {
-                          const levels = editingActivity.gradeLevels.includes(g) ? editingActivity.gradeLevels.filter(l => l !== g) : [...editingActivity.gradeLevels, g].sort();
-                          setEditingActivity({ ...editingActivity, gradeLevels: levels });
-                        }} style={[s.gradeBtn, editingActivity.gradeLevels.includes(g) && s.gradeBtnActive]}>
-                          <Text style={[s.gradeBtnTxt, editingActivity.gradeLevels.includes(g) && s.gradeBtnTxtActive]}>{g}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-
-                    <View style={[s.rowGap, { marginTop: 20 }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.label}>Hours/Week</Text>
-                        <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.hoursPerWeek || '')} onChangeText={t => setEditingActivity({ ...editingActivity, hoursPerWeek: parseInt(t) || 0 })} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.label}>Weeks/Year</Text>
-                        <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.weeksPerYear || '')} onChangeText={t => setEditingActivity({ ...editingActivity, weeksPerYear: parseInt(t) || 0 })} />
-                      </View>
-                    </View>
-
-                    <Text style={s.label}>Activity Dates (Optional)</Text>
-                    <View style={s.rowGap}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.label, { fontSize: 10 }]}>Start Date</Text>
-                        <TextInput
-                          style={s.input}
-                          value={editingActivity.startDate || ''}
-                          onChangeText={t => setEditingActivity({ ...editingActivity, startDate: t })}
-                          placeholder="e.g., September 2021"
-                          placeholderTextColor="#52525b"
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[s.label, { fontSize: 10 }]}>End Date</Text>
-                        <TextInput
-                          style={s.input}
-                          value={editingActivity.endDate || ''}
-                          onChangeText={t => setEditingActivity({ ...editingActivity, endDate: t })}
-                          placeholder="e.g., June 2024"
-                          placeholderTextColor="#52525b"
-                        />
-                      </View>
-                    </View>
-
-                    <Text style={s.sectionTitle}>Narrative</Text>
-                    <Text style={s.label}>Description ({editingActivity.description.split(' ').length}/150 words)</Text>
-                    <View>
-                      <TextInput style={[s.input, s.textArea]} multiline value={editingActivity.description} onChangeText={t => setEditingActivity({ ...editingActivity, description: t })} />
-                      <TouchableOpacity style={s.aiIconBtn} onPress={handlePolish} disabled={aiLoading}>
-                        {aiLoading ? <ActivityIndicator color="#60a5fa" /> : <Sparkles size={20} color="#60a5fa" />}
+                  <Text style={s.sectionTitle}>Time & Scope</Text>
+                  <Text style={s.label}>Grade Levels</Text>
+                  <View style={s.rowGap}>
+                    {[9, 10, 11, 12].map(g => (
+                      <TouchableOpacity key={g} onPress={() => {
+                        const levels = editingActivity.gradeLevels.includes(g) ? editingActivity.gradeLevels.filter(l => l !== g) : [...editingActivity.gradeLevels, g].sort();
+                        setEditingActivity({ ...editingActivity, gradeLevels: levels });
+                      }} style={[s.gradeBtn, editingActivity.gradeLevels.includes(g) && s.gradeBtnActive]}>
+                        <Text style={[s.gradeBtnTxt, editingActivity.gradeLevels.includes(g) && s.gradeBtnTxtActive]}>{g}</Text>
                       </TouchableOpacity>
-                    </View>
-
-                    <View style={s.rowGap}>
-                      <TouchableOpacity style={s.actionBtn} onPress={handleAnalyzeImpact} disabled={aiLoading}>
-                        <Gavel size={18} color="#fff" />
-                        <Text style={s.actionBtnTxt}>Judge Impact</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {impactAnalysis && (
-                      <View style={s.analysisCard}>
-                        <TouchableOpacity
-                          style={s.analysisHeader}
-                          onPress={() => setAnalysisExpanded(!analysisExpanded)}
-                        >
-                          <View style={s.rowGap}>
-                            <View>
-                              <Text style={s.label}>Score</Text>
-                              <Text style={s.scoreTxt}>{impactAnalysis.score}/10</Text>
-                            </View>
-                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                              <Text style={s.scoreRank}>{impactAnalysis.rank_name}</Text>
-                              <Text style={s.scoreLabel}>{impactAnalysis.rank_description}</Text>
-                            </View>
-                          </View>
-                          <View style={s.minimizeBtn}>
-                            {analysisExpanded ? (
-                              <ChevronRight size={20} color="#a1a1aa" style={{ transform: [{ rotate: '90deg' }] }} />
-                            ) : (
-                              <ChevronRight size={20} color="#a1a1aa" />
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                        {analysisExpanded && (
-                          <>
-                            <View style={[s.feedbackBox, { borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)' }]}>
-                              <Text style={[s.feedbackTitle, { color: '#f87171' }]}>Feedback</Text>
-                              <Text style={s.feedbackTxt}>{impactAnalysis.brutal_feedback}</Text>
-                            </View>
-                            <View style={[s.feedbackBox, { borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.1)' }]}>
-                              <Text style={[s.feedbackTitle, { color: '#60a5fa' }]}>Level Up</Text>
-                              <Text style={s.feedbackTxt}>{impactAnalysis.level_up_action}</Text>
-                            </View>
-                          </>
-                        )}
-                      </View>
-                    )}
-
-                    {/* NEW: Major Related Toggle */}
-                    <TouchableOpacity
-                      style={[s.checkboxRow, { marginTop: 20, marginBottom: 5 }]}
-                      onPress={() => setEditingActivity({ ...editingActivity, isMajorRelated: !editingActivity.isMajorRelated })}
-                    >
-                      <View style={[s.checkbox, editingActivity.isMajorRelated && s.checkboxChecked]}>
-                        {editingActivity.isMajorRelated && <Text style={s.checkmark}>✓</Text>}
-                      </View>
-                      <Text style={s.checkboxLabel}>Related to Major ({profile?.targetMajor?.trim() || 'Target Major'})</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[s.checkboxRow, { marginTop: 20, marginBottom: 10 }]}
-                      onPress={() => setEditingActivity({ ...editingActivity, includeInResume: !editingActivity.includeInResume })}
-                    >
-                      <View style={[s.checkbox, (editingActivity.includeInResume !== false) && s.checkboxChecked]}>
-                        {(editingActivity.includeInResume !== false) && <Text style={s.checkmark}>✓</Text>}
-                      </View>
-                      <Text style={s.checkboxLabel}>Include in Resume</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={s.saveBtn} onPress={handleSaveActivity}>
-                      <Text style={s.saveBtnTxt}>Save Changes</Text>
-                    </TouchableOpacity>
-
-                    {editingActivity.id && (
-                      <TouchableOpacity style={s.deleteBtn} onPress={() => handleDeleteActivity(editingActivity.id)}>
-                        <Trash2 color="#f87171" size={18} /><Text style={s.deleteBtnTxt}>Delete Activity</Text>
-                      </TouchableOpacity>
-                    )}
+                    ))}
                   </View>
-                </KeyboardAvoidingView>
+
+                  <View style={[s.rowGap, { marginTop: 20 }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.label}>Hours/Week</Text>
+                      <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.hoursPerWeek || '')} onChangeText={t => setEditingActivity({ ...editingActivity, hoursPerWeek: parseInt(t) || 0 })} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.label}>Weeks/Year</Text>
+                      <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.weeksPerYear || '')} onChangeText={t => setEditingActivity({ ...editingActivity, weeksPerYear: parseInt(t) || 0 })} />
+                    </View>
+                  </View>
+
+                  <Text style={s.label}>Activity Dates (Optional)</Text>
+                  <View style={s.rowGap}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.label, { fontSize: 10 }]}>Start Date</Text>
+                      <TextInput
+                        style={s.input}
+                        value={editingActivity.startDate || ''}
+                        onChangeText={t => setEditingActivity({ ...editingActivity, startDate: t })}
+                        placeholder="e.g., September 2021"
+                        placeholderTextColor="#52525b"
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.label, { fontSize: 10 }]}>End Date</Text>
+                      <TextInput
+                        style={s.input}
+                        value={editingActivity.endDate || ''}
+                        onChangeText={t => setEditingActivity({ ...editingActivity, endDate: t })}
+                        placeholder="e.g., June 2024"
+                        placeholderTextColor="#52525b"
+                      />
+                    </View>
+                  </View>
+
+                  <Text style={s.sectionTitle}>Narrative</Text>
+                  <Text style={s.label}>Description ({editingActivity.description.split(' ').length}/150 words)</Text>
+                  <View>
+                    <TextInput style={[s.input, s.textArea]} multiline value={editingActivity.description} onChangeText={t => setEditingActivity({ ...editingActivity, description: t })} />
+                    <TouchableOpacity style={s.aiIconBtn} onPress={handlePolish} disabled={aiLoading}>
+                      {aiLoading ? <ActivityIndicator color="#60a5fa" /> : <Sparkles size={20} color="#60a5fa" />}
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={s.rowGap}>
+                    <TouchableOpacity style={s.actionBtn} onPress={handleAnalyzeImpact} disabled={aiLoading}>
+                      <Gavel size={18} color="#fff" />
+                      <Text style={s.actionBtnTxt}>Judge Impact</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {impactAnalysis && (
+                    <View style={s.analysisCard}>
+                      <TouchableOpacity
+                        style={s.analysisHeader}
+                        onPress={() => setAnalysisExpanded(!analysisExpanded)}
+                      >
+                        <View style={s.rowGap}>
+                          <View>
+                            <Text style={s.label}>Score</Text>
+                            <Text style={s.scoreTxt}>{impactAnalysis.score}/10</Text>
+                          </View>
+                          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                            <Text style={s.scoreRank}>{impactAnalysis.rank_name}</Text>
+                            <Text style={s.scoreLabel}>{impactAnalysis.rank_description}</Text>
+                          </View>
+                        </View>
+                        <View style={s.minimizeBtn}>
+                          {analysisExpanded ? (
+                            <ChevronRight size={20} color="#a1a1aa" style={{ transform: [{ rotate: '90deg' }] }} />
+                          ) : (
+                            <ChevronRight size={20} color="#a1a1aa" />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                      {analysisExpanded && (
+                        <>
+                          <View style={[s.feedbackBox, { borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)' }]}>
+                            <Text style={[s.feedbackTitle, { color: '#f87171' }]}>Feedback</Text>
+                            <Text style={s.feedbackTxt}>{impactAnalysis.brutal_feedback}</Text>
+                          </View>
+                          <View style={[s.feedbackBox, { borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.1)' }]}>
+                            <Text style={[s.feedbackTitle, { color: '#60a5fa' }]}>Level Up</Text>
+                            <Text style={s.feedbackTxt}>{impactAnalysis.level_up_action}</Text>
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  )}
+
+                  {/* NEW: Major Related Toggle */}
+                  <TouchableOpacity
+                    style={[s.checkboxRow, { marginTop: 20, marginBottom: 5 }]}
+                    onPress={() => setEditingActivity({ ...editingActivity, isMajorRelated: !editingActivity.isMajorRelated })}
+                  >
+                    <View style={[s.checkbox, editingActivity.isMajorRelated && s.checkboxChecked]}>
+                      {editingActivity.isMajorRelated && <Text style={s.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={s.checkboxLabel}>Related to Major ({profile?.targetMajor?.trim() || 'Target Major'})</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.checkboxRow, { marginTop: 20, marginBottom: 10 }]}
+                    onPress={() => setEditingActivity({ ...editingActivity, includeInResume: !editingActivity.includeInResume })}
+                  >
+                    <View style={[s.checkbox, (editingActivity.includeInResume !== false) && s.checkboxChecked]}>
+                      {(editingActivity.includeInResume !== false) && <Text style={s.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={s.checkboxLabel}>Include in Resume</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={s.saveBtn} onPress={handleSaveActivity}>
+                    <Text style={s.saveBtnTxt}>Save Changes</Text>
+                  </TouchableOpacity>
+
+                  {editingActivity.id && (
+                    <TouchableOpacity style={s.deleteBtn} onPress={() => handleDeleteActivity(editingActivity.id)}>
+                      <Trash2 color="#f87171" size={18} /><Text style={s.deleteBtnTxt}>Delete Activity</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
 
 
