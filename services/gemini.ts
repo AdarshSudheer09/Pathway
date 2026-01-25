@@ -93,12 +93,27 @@ const RANK_RUBRIC = `
 // console.log("--------------------------------------------------");
 const LocalLLM = NativeModules.LocalLLMBridge;
 
+// Check if device supports Foundation Models (iPhone 15 Pro+)
+export const hasFoundationModelsSupport = async (): Promise<boolean> => {
+  try {
+    if (LocalLLM && LocalLLM.hasFoundationModelsSupport) {
+      return await LocalLLM.hasFoundationModelsSupport();
+    }
+    return false;
+  } catch (error) {
+    console.error('[Foundation Models] Capability check failed:', error);
+    return false;
+  }
+};
+
 const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any> => {
   //console.log(`[Foundation AI] Generating... Prompt length: ${prompt.length}`);
   try {
     if (LocalLLM && LocalLLM.generateResponse) {
       // 1. Send the prompt to the on-device Foundation Model
       const response = await LocalLLM.generateResponse(prompt);
+
+      console.log('[LocalAI] Raw response:', response);
 
       if (!response) {
         throw new Error("Model returned empty response");
@@ -128,9 +143,13 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
           // Replaces ", }" with "}" and ", ]" with "]"
           cleanText = cleanText.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
 
-          return JSON.parse(cleanText);
+          console.log('[LocalAI] Cleaned JSON text:', cleanText);
+          const parsed = JSON.parse(cleanText);
+          console.log('[LocalAI] Parsed JSON:', parsed);
+          return parsed;
         } catch (parseError) {
           console.log("JSON Parse Error caught. Retrying with loose recovery...");
+          console.error('[LocalAI] Parse error:', parseError);
           // Attempt basic recovery
           try {
             // Sometimes quotes are escaped incorrectly

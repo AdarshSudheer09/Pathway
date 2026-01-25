@@ -17,7 +17,7 @@ import { db } from './services/db';
 import {
   polishDescription, suggestNextSteps, analyzeCollegeChances,
   analyzeActivityImpact, generateResume, generateBragSheet,
-  analyzeStudentArchetypes
+  analyzeStudentArchetypes, hasFoundationModelsSupport
 } from './services/gemini';
 import { generateResumePDF, generateBragSheetPDF } from './services/pdfGenerator';
 import { COLLEGE_DATABASE } from './services/collegeData';
@@ -233,12 +233,31 @@ const InterviewSection = ({ profile, activities, onActiveChange, onBack }: any) 
 
   const scrollViewRef = React.useRef<ScrollView>(null);
 
-  // Auto-start interview on first mount
+  // Check device capability on mount
   useEffect(() => {
-    if (!hasStarted && profile) {
-      startSession();
-      setHasStarted(true);
-    }
+    const checkCapability = async () => {
+      const hasAI = await hasFoundationModelsSupport();
+      if (!hasAI) {
+        Alert.alert(
+          'Feature Unavailable',
+          'Interview feature is only available for devices iPhone 15 Pro and above.',
+          [{ text: 'OK', onPress: () => onBack() }]
+        );
+      }
+    };
+    checkCapability();
+  }, []);
+
+  // Auto-start interview on first mount (if device is compatible)
+  useEffect(() => {
+    const initInterview = async () => {
+      const hasAI = await hasFoundationModelsSupport();
+      if (hasAI && !hasStarted && profile) {
+        startSession();
+        setHasStarted(true);
+      }
+    };
+    initInterview();
   }, [profile, hasStarted]);
 
   // Restart when college changes AFTER initial start
@@ -449,6 +468,9 @@ export default function App() {
   // Interview Active State
   const [isInterviewActive, setIsInterviewActive] = useState(false);
 
+  // Foundation Models capability
+  const [hasAdvancedAI, setHasAdvancedAI] = useState(true); // Default to true, will check on mount
+
   // ScrollView ref for auto-scroll
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -457,6 +479,9 @@ export default function App() {
     const init = async () => {
       await db.seedIfEmpty();
       refreshData();
+      // Check if device supports advanced AI features (resume/brag sheet)
+      const hasAI = await hasFoundationModelsSupport();
+      setHasAdvancedAI(hasAI);
     };
     init();
   }, []);
@@ -714,6 +739,7 @@ export default function App() {
     // Significant change detected or first analysis - run AI
     setAiLoading(true);
     const analysis = await analyzeActivityImpact(editingActivity, profile?.targetMajor);
+    console.log('[Activity Impact] Analysis result:', JSON.stringify(analysis, null, 2));
     setImpactAnalysis(analysis);
     setAnalysisExpanded(true); // Auto-expand when new analysis comes in
     // Convert score (1-10) to tier: tier 1 = 10/10, tier 10 = 1/10
@@ -734,6 +760,14 @@ export default function App() {
   };
 
   const handleGenerateResume = async () => {
+    if (!hasAdvancedAI) {
+      Alert.alert(
+        'Feature Unavailable',
+        'Resume generation requires iPhone 15 Pro or newer with Apple Intelligence support.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     if (!profile) return;
     setAiLoading(true);
     const data = await generateResume(profile, activities, projects);
@@ -743,6 +777,14 @@ export default function App() {
   };
 
   const handleGenerateBragSheet = async () => {
+    if (!hasAdvancedAI) {
+      Alert.alert(
+        'Feature Unavailable',
+        'Brag Sheet generation requires iPhone 15 Pro or newer with Apple Intelligence support.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     if (!profile) return;
     setAiLoading(true);
     const data = await generateBragSheet(profile, activities);
@@ -1763,8 +1805,11 @@ const s = StyleSheet.create({
 
   // Export
   exportCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181b', padding: 20, borderRadius: 16, marginBottom: 15, borderWidth: 1, borderColor: '#27272a' },
+  disabledCard: { opacity: 0.5, backgroundColor: '#0f0f0f' },
   exportTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  disabledText: { color: '#71717a' },
   exportSub: { color: '#71717a', fontSize: 12, marginTop: 2 },
+  disabledSubText: { color: '#52525b' },
   loadingTxt: { color: '#60a5fa', textAlign: 'center', marginBottom: 20 },
 
   // Print Preview (Matches PDF Output)

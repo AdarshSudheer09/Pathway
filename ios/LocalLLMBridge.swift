@@ -8,9 +8,27 @@ public class LocalLLMBridge: NSObject {
     return false
   }
 
+  // Check if device supports Foundation Models (iPhone 15 Pro+)
+  @objc(hasFoundationModelsSupport:rejecter:)
+  func hasFoundationModelsSupport(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+    let isAvailable = SystemLanguageModel.default.availability == .available
+    resolve(isAvailable)
+  }
+
   @objc(generateResponse:resolver:rejecter:)
   func generateResponse(_ prompt: String, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
     
+    // TESTING: Always use tier-based analysis (comment out to restore Apple Intelligence check)
+    DispatchQueue.global(qos: .userInitiated).async {
+        let response = self.tierBasedAnalysis(prompt: prompt)
+        // Simulate processing delay for realistic UX
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            resolve(response)
+        }
+    }
+    return
+    
+    /* ORIGINAL CODE (uncomment to restore):
     // Check system availability
     guard SystemLanguageModel.default.availability == .available else {
         // For devices without Apple Intelligence (pre-iPhone 15)
@@ -35,6 +53,7 @@ public class LocalLLMBridge: NSObject {
         reject("model_error", error.localizedDescription, error)
       }
     }
+    */
   }
   
   // MARK: - Tier-Based Analysis (Fallback for older devices)
@@ -42,64 +61,119 @@ public class LocalLLMBridge: NSObject {
   private func tierBasedAnalysis(prompt: String) -> String {
     let promptLower = prompt.lowercased()
     
-    // Determine type of analysis
-    if promptLower.contains("college") && (promptLower.contains("chances") || promptLower.contains("admissions")) {
-        return analyzeCollegeChances(prompt: prompt)
-    } else if promptLower.contains("activity") || promptLower.contains("impact") || promptLower.contains("role") {
+    print("[Tier Analysis] Routing prompt (first 200 chars): \(String(promptLower.prefix(200)))")
+    
+    // Determine type of analysis - CHECK ACTIVITY FIRST (more specific)
+    // Activity prompts contain "Activity:" field or explicit activity/impact keywords
+    if promptLower.contains("activity:") || 
+       (promptLower.contains("activity") && (promptLower.contains("impact") || promptLower.contains("evaluate this activity"))) ||
+       promptLower.contains("role:") || 
+       promptLower.contains("position:") {
+        print("[Tier Analysis] → Routing to Activity Analyzer")
         return analyzeActivity(prompt: prompt)
-    } else {
-        // Generic fallback
-        return "Analysis completed based on provided information."
+    } 
+    // College chances prompts explicitly ask about admissions/chances
+    else if (promptLower.contains("college") || promptLower.contains("university")) && 
+            (promptLower.contains("chances") || promptLower.contains("admissions") || promptLower.contains("probability")) {
+        print("[Tier Analysis] → Routing to College Analyzer")
+        return analyzeCollegeChances(prompt: prompt)
+    } 
+    else {
+        // Generic fallback - try activity analysis as default
+        print("[Tier Analysis] → No clear match, defaulting to Activity Analyzer")
+        return analyzeActivity(prompt: prompt)
     }
   }
   
   // MARK: - Activity Analysis Using Tier System
   
   private func analyzeActivity(prompt: String) -> String {
-    // Extract activity details from prompt
+    // The prompt format is: Activity: "${position} at ${organization}: ${description}"
+    // We need to extract these parts or use the whole thing
+    
     var position = ""
     var organization = ""
     var description = ""
     
-    // Parse prompt for activity details
-    let lines = prompt.components(separatedBy: "\n")
-    for line in lines {
-        let lower = line.lowercased()
-        if lower.contains("position:") || lower.contains("role:") {
-            position = line.replacingOccurrences(of: "position:", with: "", options: .caseInsensitive)
-                          .replacingOccurrences(of: "role:", with: "", options: .caseInsensitive)
-                          .trimmingCharacters(in: .whitespaces)
-        } else if lower.contains("organization:") || lower.contains("club:") {
-            organization = line.replacingOccurrences(of: "organization:", with: "", options: .caseInsensitive)
-                              .replacingOccurrences(of: "club:", with: "", options: .caseInsensitive)
+    // Try to find the Activity: line
+    if let activityRange = prompt.range(of: "Activity:", options: .caseInsensitive) {
+        // Extract everything after "Activity:"
+        let activityText = String(prompt[activityRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Remove quotes if present
+        let cleanedText = activityText.replacingOccurrences(of: "\"", with: "")
+        
+        // Try to split by " at " to get position and rest
+        if let atRange = cleanedText.range(of: " at ", options: .caseInsensitive) {
+            position = String(cleanedText[..<atRange.lowerBound])
+            let rest = String(cleanedText[atRange.upperBound...])
+            
+            // Try to split rest by ": " to get organization and description
+            if let colonRange = rest.range(of: ": ") {
+                organization = String(rest[..<colonRange.lowerBound])
+                description = String(rest[colonRange.upperBound...])
+            } else {
+                // No description separator, use it all as organization
+                organization = rest
+            }
+        } else {
+            // No " at " found, use entire line as description
+            description = cleanedText
+        }
+    } else {
+        // Fallback: try parsing structured format
+        let lines = prompt.components(separatedBy: "\n")
+        for line in lines {
+            let lower = line.lowercased()
+            if lower.contains("position:") || lower.contains("role:") {
+                position = line.replacingOccurrences(of: "position:", with: "", options: .caseInsensitive)
+                              .replacingOccurrences(of: "role:", with: "", options: .caseInsensitive)
                               .trimmingCharacters(in: .whitespaces)
-        } else if lower.contains("description:") {
-            description = line.replacingOccurrences(of: "description:", with: "", options: .caseInsensitive)
-                             .trimmingCharacters(in: .whitespaces)
+            } else if lower.contains("organization:") || lower.contains("club:") {
+                organization = line.replacingOccurrences(of: "organization:", with: "", options: .caseInsensitive)
+                                  .replacingOccurrences(of: "club:", with: "", options: .caseInsensitive)
+                                  .trimmingCharacters(in: .whitespaces)
+            } else if lower.contains("description:") {
+                description = line.replacingOccurrences(of: "description:", with: "", options: .caseInsensitive)
+                                 .trimmingCharacters(in: .whitespaces)
+            }
         }
     }
     
-    // If parsing failed, use entire prompt as description
+    // If we still don't have a description, use the entire prompt
     if description.isEmpty {
         description = prompt
     }
     
-    // Use ActivityAnalyzer
+    // Use ActivityAnalyzer with the extracted (or full prompt) information
     let result = ActivityAnalyzer.analyzeActivity(
         description: description,
         position: position,
         organization: organization
     )
     
-    return """
+    // Properly escape strings for JSON
+    let escapedDescription = result.description.replacingOccurrences(of: "\"", with: "\\\"")
+                                              .replacingOccurrences(of: "\n", with: "\\n")
+    let escapedFeedback = result.feedback.replacingOccurrences(of: "\"", with: "\\\"")
+                                        .replacingOccurrences(of: "\n", with: "\\n")
+    let escapedLevelUp = result.levelUp.replacingOccurrences(of: "\"", with: "\\\"")
+                                       .replacingOccurrences(of: "\n", with: "\\n")
+    let escapedRankName = result.rankName.replacingOccurrences(of: "\"", with: "\\\"")
+    
+    let jsonResponse = """
     {
       "score": \(result.score),
-      "rank_name": "\(result.rankName)",
-      "rank_description": "\(result.description)",
-      "brutal_feedback": "\(result.feedback)",
-      "level_up_action": "\(result.levelUp)"
+      "rank_name": "\(escapedRankName)",
+      "rank_description": "\(escapedDescription)",
+      "brutal_feedback": "\(escapedFeedback)",
+      "level_up_action": "\(escapedLevelUp)"
     }
     """
+    
+    print("[Activity Analyzer] Returning JSON: \(jsonResponse)")
+    
+    return jsonResponse
   }
   
   // MARK: - College Chances Analysis Using Mathematical Formula

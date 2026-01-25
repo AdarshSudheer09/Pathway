@@ -11,6 +11,8 @@
 		035C69432EFCE75E000EEE8C /* LocalLLMBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 035C69422EFCE75E000EEE8C /* LocalLLMBridge.m */; };
 		035C69452EFCE768000EEE8C /* LocalLLMBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 035C69442EFCE768000EEE8C /* LocalLLMBridge.swift */; };
 		035C69472EFDD2B7000EEE8C /* FoundationModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 035C69462EFDD2B7000EEE8C /* FoundationModels.framework */; };
+		03D724072F1EF6A5003A3FC9 /* CollegeAdmissionsAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D724062F1EF6A5003A3FC9 /* CollegeAdmissionsAnalyzer.swift */; };
+		03D724082F1EF6A5003A3FC9 /* ActivityAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D724052F1EF6A5003A3FC9 /* ActivityAnalyzer.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		260ED5615BD8424DBB2ABB24 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		505AA763D12799DB662700E0 /* libPods-PATHWAY.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 708FF3C2796E7A7C85AC7023 /* libPods-PATHWAY.a */; };
@@ -36,6 +38,8 @@
 		035C69422EFCE75E000EEE8C /* LocalLLMBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LocalLLMBridge.m; sourceTree = "<group>"; };
 		035C69442EFCE768000EEE8C /* LocalLLMBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMBridge.swift; sourceTree = "<group>"; };
 		035C69462EFDD2B7000EEE8C /* FoundationModels.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FoundationModels.framework; path = System/Library/Frameworks/FoundationModels.framework; sourceTree = SDKROOT; };
+		03D724052F1EF6A5003A3FC9 /* ActivityAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityAnalyzer.swift; sourceTree = "<group>"; };
+		03D724062F1EF6A5003A3FC9 /* CollegeAdmissionsAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollegeAdmissionsAnalyzer.swift; sourceTree = "<group>"; };
 		054B80C41304515ABC1B0E3B /* Pods-PATHWAY.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PATHWAY.debug.xcconfig"; path = "Target Support Files/Pods-PATHWAY/Pods-PATHWAY.debug.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* PATHWAY.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PATHWAY.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = PATHWAY/Images.xcassets; sourceTree = "<group>"; };
@@ -100,6 +104,8 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				03D724052F1EF6A5003A3FC9 /* ActivityAnalyzer.swift */,
+				03D724062F1EF6A5003A3FC9 /* CollegeAdmissionsAnalyzer.swift */,
 				13B07FAE1A68108700A75B9A /* PATHWAY */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
@@ -227,9 +233,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PATHWAY/Pods-PATHWAY-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PATHWAY/Pods-PATHWAY-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -266,9 +276,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PATHWAY/Pods-PATHWAY-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PATHWAY/Pods-PATHWAY-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -283,6 +297,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				035C69452EFCE768000EEE8C /* LocalLLMBridge.swift in Sources */,
+				03D724072F1EF6A5003A3FC9 /* CollegeAdmissionsAnalyzer.swift in Sources */,
+				03D724082F1EF6A5003A3FC9 /* ActivityAnalyzer.swift in Sources */,
 				035C69432EFCE75E000EEE8C /* LocalLLMBridge.m in Sources */,
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 			);
@@ -540,6 +556,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CC = "";
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -567,6 +584,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
+				CXX = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
@@ -599,6 +617,8 @@
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers/react/renderer/graphics/platform/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD = "";
+				LDPLUSPLUS = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",
@@ -619,10 +639,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -634,6 +651,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CC = "";
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
 				CLANG_CXX_LIBRARY = "libc++";
@@ -661,6 +679,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = YES;
+				CXX = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
@@ -686,6 +705,8 @@
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers/react/renderer/graphics/platform/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD = "";
+				LDPLUSPLUS = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					/usr/lib/swift,
 					"$(inherited)",
@@ -705,10 +726,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
