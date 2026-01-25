@@ -308,67 +308,83 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
   const majorMatch = targetMajor ? findClosestMajor(targetMajor) : "Computer Science";
   const topSchools = MAJOR_TOP_SCHOOLS[majorMatch];
 
-  const prompt = `
-  Role: Admissions Officer at a prestigious university (e.g., USC, NYU, UMich, Georgetown level - NOT Ivy but highly selective).
-  Task: Evaluate this activity using the 1-10 rubric. Be realistic but fairly harsh.
+  // CHECK SUPPORT FIRST:
+  // If NO Foundation Model support, we MUST send a CLEAN prompt (Activity Only) to the Bridge.
+  // Sending the Rubric causes "Pollution" where the Analyzer matches keywords inside the Rubric instructions.
+  const supportsFoundation = await hasFoundationModelsSupport();
 
-  RUBRIC:
-  ${RANK_RUBRIC}
+  let prompt = "";
 
-  **EXPLICIT SCORE MAPPING**:
-  - Bronze I = 1/10, Bronze II = 2/10 (Basic participation)
-  - Silver I = 3/10, Silver II = 4/10 (Local leadership/competition)
-  - Gold I = 5/10, Gold II = 6/10 (State/Regional achievement)
-  - Diamond I = 7/10, Diamond II = 8/10 (National achievement)
-  - Platinum I = 9/10, Platinum II = 10/10 (International/Elite)
+  if (supportsFoundation) {
+    // FULL LLM PROMPT (AI Models need context)
+    prompt = `
+    Role: Admissions Officer at a prestigious university (e.g., USC, NYU, UMich, Georgetown level - NOT Ivy but highly selective).
+    Task: Evaluate this activity using the 1-10 rubric. Be realistic but fairly harsh.
 
-  **APPLICANT'S TARGET MAJOR**: ${targetMajor || "Not specified"}
-  **TOP SCHOOLS FOR THIS MAJOR**: ${topSchools}
+    RUBRIC:
+    ${RANK_RUBRIC}
 
-  Activity: "${activity.position} at ${activity.organization}: ${activity.description}"
-  ${activity.isMajorRelated ? `**USER NOTE**: The applicant has explicitly marked this activity as RELATED to their major (${targetMajor}). Trust this assertion and evaluate accordingly.` : ''}
+    **EXPLICIT SCORE MAPPING**:
+    - Bronze I = 1/10, Bronze II = 2/10 (Basic participation)
+    - Silver I = 3/10, Silver II = 4/10 (Local leadership/competition)
+    - Gold I = 5/10, Gold II = 6/10 (State/Regional achievement)
+    - Diamond I = 7/10, Diamond II = 8/10 (National achievement)
+    - Platinum I = 9/10, Platinum II = 10/10 (International/Elite)
 
-  **IMPORTANT SCORING ADJUSTMENTS**:
-  - **CRITICAL**: Reserve 9-10/10 (Platinum) for ONLY national olympiad winners, international competitions, elite research (ISEF Grand Prize, RSI, etc.)
-  - **Major Relevance**: Use "SEMANTIC INFERENCE" to determine relevance.
-    * If marked as "**USER NOTE**: ... RELATED":
-      1. **DEFAULT TRUST**: Assume there is a connection you might not see immediately (e.g., soft skills, leadership application).
-      2. **EXCEPTION**: ONLY overrule this if the activity is **OBJECTIVELY and COMPLETELY** unrelated causing a logical contradiction (e.g. 'Walking my dog' for 'Nuclear Engineering').
-      3. If there is even a *slight* arguable connection (e.g., 'Volunteering' -> 'CS' via 'Service/Community Impact' or 'Teaching'), **TRUST THE USER**.
-    * Look for TRANSFERABLE SKILLS or ALLIED FIELDS (e.g., Math Club -> Physics Major = RELATED; Debate -> Political Science/Law = RELATED).
-    * DIRECT KEYWORD MATCH IS NOT REQUIRED.
-    * If activity is semantically related to ${targetMajor}, boost score by 0.5-1 point MAXIMUM.
-    * DO NOT give 7+ just because it's major-related. A basic CS club for CS major is still 2-3/10.
-    * Only exceptional, high-impact major-related activities deserve 6+/10.
-  - **Major Irrelevance**: If activity is completely unrelated (no transferable skills or semantic link) to ${targetMajor}, reduce score by 0.5 point.
-  - **Cliché Activities**: Standard club memberships (NHS, Key Club, etc.) without leadership → Reduce score.
-  - **Tech/Apps**: 10k+ users = Gold II (6/10), 100k+ = Diamond I (7/10), NOT Platinum
-  - **Competitions**: State = Silver II (4/10), National = Gold/Diamond (6-8/10), International = Platinum (9-10/10)
-  - **Research**: Published in undergraduate journal = Gold II (6/10), Peer-reviewed Q1 = Diamond (7-8/10)
-  
-  **SCORING REALITY CHECK**:
-  - Most activities should be 2-6/10 range
-  - 7-8/10 = National-level achievement (USAMO qualifier, ISEF finalist, etc.)
-  - 9-10/10 = International/Olympic level ONLY
+    **APPLICANT'S TARGET MAJOR**: ${targetMajor || "Not specified"}
+    **TOP SCHOOLS FOR THIS MAJOR**: ${topSchools}
 
-  **CRITICAL INSTRUCTIONS**:
-  1. Match activity to rank based on rubric and adjustments above. Be FAIR but REALISTIC for ${topSchools} standards.
-  2. Assign score based on EXPLICIT MAPPING. If activity has major relevance or significant metrics, adjust accordingly.
-  3. For rank_description: One sentence assessment mentioning major relevance if applicable.
-  4. For brutal_feedback: Be honest but constructive. Mention if activity is cliché or lacks major connection.
-  5. For level_up_action: 
-     - Reference what **${topSchools}** specifically looks for in ${targetMajor} applicants
-     - Suggest SPECIFIC next steps related to their major and current position
-     - Example: "For ${majorMatch} at ${topSchools.split(',')[0]}, demonstrate..."
+    Activity: "${activity.position} at ${activity.organization}: ${activity.description}"
+    ${activity.isMajorRelated ? `**USER NOTE**: The applicant has explicitly marked this activity as RELATED to their major (${targetMajor}). Trust this assertion and evaluate accordingly.` : ''}
 
-  **Example**: "Generic club membership unrelated to major" → Lower score
-  Output JSON: {
-    "score": Integer (1-10, exact mapping),
-    "rank_name": "String (e.g., Silver I)",
-    "rank_description": "One sentence assessment - NO listing of other activities",
-    "brutal_feedback": "Harsh critique addressing 'you'",
-    "level_up_action": "Specific, RELATED next step to reach next rank"
-  }`;
+    **IMPORTANT SCORING ADJUSTMENTS**:
+    - **CRITICAL**: Reserve 9-10/10 (Platinum) for ONLY national olympiad winners, international competitions, elite research (ISEF Grand Prize, RSI, etc.)
+    - **Major Relevance**: Use "SEMANTIC INFERENCE" to determine relevance.
+      * If marked as "**USER NOTE**: ... RELATED":
+        1. **DEFAULT TRUST**: Assume there is a connection you might not see immediately (e.g., soft skills, leadership application).
+        2. **EXCEPTION**: ONLY overrule this if the activity is **OBJECTIVELY and COMPLETELY** unrelated causing a logical contradiction (e.g. 'Walking my dog' for 'Nuclear Engineering').
+        3. If there is even a *slight* arguable connection (e.g., 'Volunteering' -> 'CS' via 'Service/Community Impact' or 'Teaching'), **TRUST THE USER**.
+      * Look for TRANSFERABLE SKILLS or ALLIED FIELDS (e.g., Math Club -> Physics Major = RELATED; Debate -> Political Science/Law = RELATED).
+      * DIRECT KEYWORD MATCH IS NOT REQUIRED.
+      * If activity is semantically related to ${targetMajor}, boost score by 0.5-1 point MAXIMUM.
+      * DO NOT give 7+ just because it's major-related. A basic CS club for CS major is still 2-3/10.
+      * Only exceptional, high-impact major-related activities deserve 6+/10.
+    - **Major Irrelevance**: If activity is completely unrelated (no transferable skills or semantic link) to ${targetMajor}, reduce score by 0.5 point.
+    - **Cliché Activities**: Standard club memberships (NHS, Key Club, etc.) without leadership → Reduce score.
+    - **Tech/Apps**: 10k+ users = Gold II (6/10), 100k+ = Diamond I (7/10), NOT Platinum
+    - **Competitions**: State = Silver II (4/10), National = Gold/Diamond (6-8/10), International = Platinum (9-10/10)
+    - **Research**: Published in undergraduate journal = Gold II (6/10), Peer-reviewed Q1 = Diamond (7-8/10)
+    
+    **SCORING REALITY CHECK**:
+    - Most activities should be 2-6/10 range
+    - 7-8/10 = National-level achievement (USAMO qualifier, ISEF finalist, etc.)
+    - 9-10/10 = International/Olympic level ONLY
+
+    **CRITICAL INSTRUCTIONS**:
+    1. Match activity to rank based on rubric and adjustments above. Be FAIR but REALISTIC for ${topSchools} standards.
+    2. Assign score based on EXPLICIT MAPPING. If activity has major relevance or significant metrics, adjust accordingly.
+    3. For rank_description: One sentence assessment mentioning major relevance if applicable.
+    4. For brutal_feedback: Be honest but constructive. Mention if activity is cliché or lacks major connection.
+    5. For level_up_action: 
+       - Reference what **${topSchools}** specifically looks for in ${targetMajor} applicants
+       - Suggest SPECIFIC next steps related to their major and current position
+       - Example: "For ${majorMatch} at ${topSchools.split(',')[0]}, demonstrate..."
+
+    **Example**: "Generic club membership unrelated to major" → Lower score
+    Output JSON: {
+      "score": Integer (1-10, exact mapping),
+      "rank_name": "String (e.g., Silver I)",
+      "rank_description": "One sentence assessment - NO listing of other activities",
+      "brutal_feedback": "Harsh critique addressing 'you'",
+      "level_up_action": "Specific, RELATED next step to reach next rank"
+    }`;
+  } else {
+    // MINIMAL TEXT PROMPT (For Native Regex/Keyword Analyzer)
+    // The native analyzer uses "contains" on the entire string. 
+    // If we include the rubric, it matches keywords IN THE RUBRIC.
+    prompt = `Activity: ${activity.position} at ${activity.organization}: ${activity.description}`;
+    console.log('[Gemini] Using Minimal Prompt for Native Analyzer to prevent rubric pollution.');
+  }
 
   try {
     const result = await callLocalAI(prompt, true);
@@ -381,6 +397,7 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
         level_up_action: "To reach Silver II (4/10), win a state-level competition in your field or lead a regional initiative with documented results."
       };
     }
+
     return result;
   } catch (error) {
     console.log('Error in analyzeActivityImpact (using fallback):', error);

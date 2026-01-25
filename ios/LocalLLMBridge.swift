@@ -95,10 +95,50 @@ public class LocalLLMBridge: NSObject {
     var organization = ""
     var description = ""
     
-    // Try to find the Activity: line
-    if let activityRange = prompt.range(of: "Activity:", options: .caseInsensitive) {
-        // Extract everything after "Activity:"
-        let activityText = String(prompt[activityRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+    // 1. Try to find the explicit delimiters <<<ACTIVITY_START>>> and <<<ACTIVITY_END>>>
+    if let startRange = prompt.range(of: "<<<ACTIVITY_START>>>"),
+       let endRange = prompt.range(of: "<<<ACTIVITY_END>>>") {
+        
+        // Extract exact content between delimiters
+        let activityText = String(prompt[startRange.upperBound..<endRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Try to split by " at " or ": " to parse components
+        // Default assumption: Position at Organization: Description
+        
+        // Remove quotes if present
+        let cleanedText = activityText.replacingOccurrences(of: "\"", with: "")
+        
+        if let atRange = cleanedText.range(of: " at ", options: .caseInsensitive) {
+            position = String(cleanedText[..<atRange.lowerBound])
+            let rest = String(cleanedText[atRange.upperBound...])
+            
+            if let colonRange = rest.range(of: ": ") {
+                organization = String(rest[..<colonRange.lowerBound])
+                description = String(rest[colonRange.upperBound...])
+            } else {
+                organization = rest
+            }
+        } else {
+            // No " at " found, check for colon separator for simple Description or Position: Description
+            if let colonRange = cleanedText.range(of: ": ") {
+                position = String(cleanedText[..<colonRange.lowerBound]) // treat first part as position/title
+                description = String(cleanedText[colonRange.upperBound...])
+            } else {
+                // Treat whole thing as description
+                description = cleanedText
+            }
+        }
+        
+    } else if let activityRange = prompt.range(of: "Activity:", options: .caseInsensitive) {
+        // 2. Fallback to extracting everything after "Activity:" up to the next newline
+        let substring = String(prompt[activityRange.upperBound...])
+        let activityText: String
+        
+        if let newlineRange = substring.range(of: "\n") {
+            activityText = String(substring[..<newlineRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            activityText = substring.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         
         // Remove quotes if present
         let cleanedText = activityText.replacingOccurrences(of: "\"", with: "")
@@ -121,7 +161,7 @@ public class LocalLLMBridge: NSObject {
             description = cleanedText
         }
     } else {
-        // Fallback: try parsing structured format
+        // 3. Fallback: try parsing structured format from newlines
         let lines = prompt.components(separatedBy: "\n")
         for line in lines {
             let lower = line.lowercased()

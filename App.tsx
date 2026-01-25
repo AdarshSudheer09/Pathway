@@ -439,6 +439,16 @@ const InterviewSection = ({ profile, activities, onActiveChange, onBack }: any) 
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
+  const [aiSupported, setAiSupported] = useState(false);
+
+  useEffect(() => {
+    // Check for Foundation Model support on mount
+    const checkSupport = async () => {
+      const supported = await hasFoundationModelsSupport();
+      setAiSupported(supported);
+    };
+    checkSupport();
+  }, []);
   // 1. ALL HOOKS DEFINED UNCONDITIONALLY AT THE TOP
   const [view, setView] = useState('dashboard');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -1059,15 +1069,16 @@ export default function App() {
                   <Text style={s.label}>Description ({editingActivity.description.split(' ').length}/150 words)</Text>
                   <View>
                     <TextInput style={[s.input, s.textArea]} multiline value={editingActivity.description} onChangeText={t => setEditingActivity({ ...editingActivity, description: t })} />
-                    <TouchableOpacity style={s.aiIconBtn} onPress={handlePolish} disabled={aiLoading}>
-                      {aiLoading ? <ActivityIndicator color="#60a5fa" /> : <Sparkles size={20} color="#60a5fa" />}
-                    </TouchableOpacity>
                   </View>
 
                   <View style={s.rowGap}>
                     <TouchableOpacity style={s.actionBtn} onPress={handleAnalyzeImpact} disabled={aiLoading}>
-                      <Gavel size={18} color="#fff" />
-                      <Text style={s.actionBtnTxt}>Judge Impact</Text>
+                      {aiLoading ? (
+                        <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                      ) : (
+                        <Gavel size={18} color="#fff" />
+                      )}
+                      <Text style={s.actionBtnTxt}>{aiLoading ? "Judging..." : "Judge Impact"}</Text>
                     </TouchableOpacity>
                   </View>
 
@@ -1159,9 +1170,6 @@ export default function App() {
                     <Text style={s.label}>Description</Text>
                     <View>
                       <TextInput style={[s.input, s.textArea]} multiline value={editingProject.description} onChangeText={t => setEditingProject({ ...editingProject, description: t })} placeholder="Describe what you built..." placeholderTextColor="#52525b" />
-                      <TouchableOpacity style={s.aiIconBtn} onPress={handlePolishProjectDescription} disabled={aiLoading}>
-                        {aiLoading ? <ActivityIndicator color="#60a5fa" size="small" /> : <Sparkles color="#60a5fa" size={18} />}
-                      </TouchableOpacity>
                     </View>
 
                     <Text style={s.label}>Skills/Methods Used (Optional)</Text>

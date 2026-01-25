@@ -598,6 +598,16 @@ class ActivityAnalyzer {
                 "intel isef", "intel isef finalist", "regeneron isef",  "regeneron isef finalist",
                 "international science and engineering fair", "international science fair finalist",
                 "won isef category award", "earned isef award", "placed at isef",
+
+                // Generic Olympiad Winners (Catch-all for ambiguously phrased high achievements)
+                "olympiad winner", "olympiad champion", "won olympiad",
+                "math olympiad winner", "math olympiad champion",
+                "science olympiad winner", "science olympiad champion",
+                "physics olympiad winner", "physics olympiad champion",
+                "chemistry olympiad winner", "chemistry olympiad champion",
+                "biology olympiad winner", "biology olympiad champion",
+                "informatics olympiad winner", "informatics olympiad champion",
+                "coding olympiad winner", "computing olympiad winner",
                 
                 // JSHS (Junior Science and Humanities Symposium)
                 "jshs", "jshs national finalist", "jshs national", "jshs finalist",
@@ -1576,7 +1586,7 @@ class ActivityAnalyzer {
             rankName: "Silver I",
             description: "Multi-club officer or varsity athlete with achievements",
             feedback: "You show consistent commitment and growth in your activities. This demonstrates reliability and engagement.",
-            levelUpAction: "Pursue competitive opportunities or expand your leadership impact to reach Silver II level.",
+            levelUpAction: "Pursue competitive opportunities or expand your leadership impact to reach a higher level.",
             keywords: [
                 // ═══════════════════════════════════════════════════════
                 // CLUB OFFICERS (Secretary/Treasurer/Others) - EXHAUSTIVE COVERAGE
@@ -1588,6 +1598,10 @@ class ActivityAnalyzer {
                 "robotics secretary", "coding club secretary", "art club secretary",
                 "drama club secretary", "french club secretary", "spanish club secretary",
                 "honor society secretary", "secretary of",
+                
+                // Generic Leadership (Guaranteed 3/10)
+                "president", "founder", "captain", "vice president", "secretary", "treasurer",
+                "lead", "head of", "leader", "chief", "director", "chair", "chairman", "chairwoman",
                 
                 // Treasurer
                 "club treasurer", "treasurer of club", "treasurer of organization",
@@ -1909,7 +1923,7 @@ class ActivityAnalyzer {
             rankName: "Bronze I",
             description: "General participation and involvement",
             feedback: "You're building experience through participation. Focus on developing depth in one or two key areas.",
-            levelUpAction: "Aim for leadership roles or consistent long-term commitment to move to Bronze II tier.",
+            levelUpAction: "Aim for leadership roles or consistent long-term commitment to move farther up the ranks.",
             keywords: [
                 // ═══════════════════════════════════════════════════════
                 // HOBBIES & INTERESTS - EXHAUSTIVE COVERAGE
@@ -2053,22 +2067,23 @@ class ActivityAnalyzer {
         
         let combinedText = "\(position) \(organization) \(description)".lowercased()
         
-        // Find best matching tier based on keywords
-        var bestMatch: ActivityTier = tiers.last! // Default to Bronze I
-        var maxMatches = 0
-        
+        // Greedy matching: Return highest tier that has ANY match
+        // Tiers are ordered High -> Low
         for tier in tiers {
-            let matchCount = tier.keywords.filter { combinedText.contains($0) }.count
-            if matchCount > maxMatches {
-                maxMatches = matchCount
-                bestMatch = tier
+            // Check if any keyword in this tier maps to the text using SAFE matching
+            if tier.keywords.contains(where: { matchesSafely(text: combinedText, keyword: $0) }) {
+                return (
+                    score: tier.score,
+                    rankName: tier.rankName,
+                    description: tier.description,
+                    feedback: tier.feedback,
+                    levelUp: tier.levelUpAction
+                )
             }
         }
         
         // If no keyword matches, use heuristics
-        if maxMatches == 0 {
-            bestMatch = heuristicAnalysis(text: combinedText)
-        }
+        let bestMatch = heuristicAnalysis(text: combinedText)
         
         return (
             score: bestMatch.score,
@@ -2077,6 +2092,17 @@ class ActivityAnalyzer {
             feedback: bestMatch.feedback,
             levelUp: bestMatch.levelUpAction
         )
+    }
+
+    // Check for match ensuring word boundaries to prevent "imo" matching "eskimo"
+    private static func matchesSafely(text: String, keyword: String) -> Bool {
+        let alphanumerics = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " "))
+        if keyword.rangeOfCharacter(from: alphanumerics.inverted) != nil {
+            return text.contains(keyword)
+        }
+        
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: keyword) + "\\b"
+        return text.range(of: pattern, options: .regularExpression) != nil
     }
     
     // MARK: - Heuristic Analysis Fallback
