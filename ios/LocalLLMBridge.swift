@@ -18,20 +18,12 @@ public class LocalLLMBridge: NSObject {
   @objc(generateResponse:resolver:rejecter:)
   func generateResponse(_ prompt: String, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
     
-    // TESTING: Always use tier-based analysis (comment out to restore Apple Intelligence check)
-    DispatchQueue.global(qos: .userInitiated).async {
-        let response = self.tierBasedAnalysis(prompt: prompt)
-        // Simulate processing delay for realistic UX
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            resolve(response)
-        }
-    }
-    return
-    
-    /* ORIGINAL CODE (uncomment to restore):
     // Check system availability
     guard SystemLanguageModel.default.availability == .available else {
         // For devices without Apple Intelligence (pre-iPhone 15)
+        // OR checks failed
+        print("[LocalLLM] Foundation Model Unavailable. Using Tier-Based Fallback.")
+        
         // Use tier-based logic analysis
         DispatchQueue.global(qos: .userInitiated).async {
             let response = self.tierBasedAnalysis(prompt: prompt)
@@ -43,17 +35,22 @@ public class LocalLLMBridge: NSObject {
         return
     }
 
+    print("[LocalLLM] Foundation Model AVAILABLE. Generating...")
+
     Task {
       do {
         // Create session for iPhone 15+ with Apple Intelligence
         let session = try await LanguageModelSession()
         let response = try await session.respond(to: prompt)
+        print("[LocalLLM] Generated: \(response.content)")
         resolve(response.content)
       } catch {
-        reject("model_error", error.localizedDescription, error)
+        print("[LocalLLM] Error using Foundation Model: \(error). Falling back to Tier-Based.")
+        // If the actual model generation fails, ALSO fallback to tier-based
+         let fallbackResponse = self.tierBasedAnalysis(prompt: prompt)
+         resolve(fallbackResponse)
       }
     }
-    */
   }
   
   // MARK: - Tier-Based Analysis (Fallback for older devices)
@@ -78,11 +75,45 @@ public class LocalLLMBridge: NSObject {
         print("[Tier Analysis] → Routing to College Analyzer")
         return analyzeCollegeChances(prompt: prompt)
     } 
+
+    
+    else if (promptLower.contains("archetype") || promptLower.contains("narrative") || promptLower.contains("personal brand")) {
+        print("[Tier Analysis] → Routing to Archetype Analyzer")
+        return analyzeArchetype(prompt: prompt)
+    }
+    
     else {
         // Generic fallback - try activity analysis as default
         print("[Tier Analysis] → No clear match, defaulting to Activity Analyzer")
         return analyzeActivity(prompt: prompt)
     }
+  }
+  
+  // MARK: - Archetype Analysis (Mock Fallback)
+  private func analyzeArchetype(prompt: String) -> String {
+    // Return a SAFE mock response that matches the expected JSON structure
+    // structure: { analysis_summary: string, narratives: [{ archetype_name: string, tagline: string }] }
+    
+    let jsonResponse = """
+    {
+      "analysis_summary": "Based on your impressive profile and activities, you demonstrate a strong blend of academic rigor and specialized interest. Connect to a device with Apple Intelligence for a deeper, personalized analysis.",
+      "narratives": [
+        {
+          "archetype_name": "The High-Achiever",
+          "tagline": "Consistent excellence across academics and extracurriculars"
+        },
+        {
+          "archetype_name": "The Specialist",
+          "tagline": "Deeply focused on your primary field of interest"
+        },
+        {
+          "archetype_name": "The Community Leader",
+          "tagline": "Driven by impact and service to others"
+        }
+      ]
+    }
+    """
+    return jsonResponse
   }
   
   // MARK: - Activity Analysis Using Tier System

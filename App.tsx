@@ -133,23 +133,23 @@ const NavTab = ({ active, icon: Icon, onPress }: any) => (
 
 const ActivityCard = ({ activity, onEdit, onStar, isExample }: any) => {
   const getTierColor = (t?: number) => {
-    // Tier 1 = 10/10 (best), Tier 10 = 1/10 (worst)
+    // 1-10 Scale: 10 = Platinum (Best), 1 = Bronze (Starting)
     if (!t) return { text: '#71717a', bg: '#18181b', border: '#27272a' };
 
-    if (t <= 2) {
-      // Tier 1-2: Green (Exceptional)
+    if (t >= 9) {
+      // Tier 9-10: Platinum (Exceptional) - Green
       return { text: '#34d399', bg: 'rgba(52, 211, 153, 0.1)', border: 'rgba(52, 211, 153, 0.3)' };
-    } else if (t <= 4) {
-      // Tier 3-4: Yellow (Great)
-      return { text: '#facc15', bg: 'rgba(250, 204, 21, 0.1)', border: 'rgba(250, 204, 21, 0.3)' };
-    } else if (t <= 6) {
-      // Tier 5-6: Blue (Good)
+    } else if (t >= 7) {
+      // Tier 7-8: Diamond (Elite) - Blue
       return { text: '#60a5fa', bg: 'rgba(96, 165, 250, 0.1)', border: 'rgba(96, 165, 250, 0.3)' };
-    } else if (t <= 8) {
-      // Tier 7-8: Orange (Average)
+    } else if (t >= 5) {
+      // Tier 5-6: Gold (Strong) - Yellow
+      return { text: '#facc15', bg: 'rgba(250, 204, 21, 0.1)', border: 'rgba(250, 204, 21, 0.3)' };
+    } else if (t >= 3) {
+      // Tier 3-4: Silver (Good) - Orange
       return { text: '#fb923c', bg: 'rgba(251, 146, 60, 0.1)', border: 'rgba(251, 146, 60, 0.3)' };
     } else {
-      // Tier 9-10: Red (Weak)
+      // Tier 1-2: Bronze (Basic) - Red/Gray
       return { text: '#f87171', bg: 'rgba(248, 113, 113, 0.1)', border: 'rgba(248, 113, 113, 0.3)' };
     }
   };
@@ -440,12 +440,14 @@ const InterviewSection = ({ profile, activities, onActiveChange, onBack }: any) 
 
 export default function App() {
   const [aiSupported, setAiSupported] = useState(false);
+  const [foundationSupported, setFoundationSupported] = useState(false);
 
   useEffect(() => {
     // Check for Foundation Model support on mount
     const checkSupport = async () => {
       const supported = await hasFoundationModelsSupport();
       setAiSupported(supported);
+      setFoundationSupported(supported);
     };
     checkSupport();
   }, []);
@@ -479,7 +481,8 @@ export default function App() {
   const [isInterviewActive, setIsInterviewActive] = useState(false);
 
   // Foundation Models capability
-  const [hasAdvancedAI, setHasAdvancedAI] = useState(true); // Default to true, will check on mount
+  // Replaced by foundationSupported at the top
+  // const [hasAdvancedAI, setHasAdvancedAI] = useState(true);
 
   // ScrollView ref for auto-scroll
   const scrollViewRef = useRef<ScrollView>(null);
@@ -489,9 +492,9 @@ export default function App() {
     const init = async () => {
       await db.seedIfEmpty();
       refreshData();
-      // Check if device supports advanced AI features (resume/brag sheet)
+      // Check for Foundation Models support
       const hasAI = await hasFoundationModelsSupport();
-      setHasAdvancedAI(hasAI);
+      setFoundationSupported(hasAI);
     };
     init();
   }, []);
@@ -598,21 +601,43 @@ export default function App() {
 
   const handlePolishProjectDescription = async () => {
     if (!editingProject?.description) return;
-    setAiLoading(true);
-    const polished = await polishDescription(editingProject.description, profile?.targetMajor || 'General');
-    setEditingProject({ ...editingProject, description: polished });
-    setAiLoading(false);
+    try {
+      setAiLoading(true);
+      const polished = await polishDescription(editingProject.description, profile?.targetMajor || 'General');
+      setEditingProject({ ...editingProject, description: polished });
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to polish description. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
 
   const handleAnalyzeStrategy = async () => {
     if (!profile || activities.length === 0) return;
-    setAiLoading(true);
-    const result = await analyzeStudentArchetypes(profile, activities, projects);
-    const updated = { ...profile, archetype: result.narratives[0]?.archetype_name, narrativeAnalysis: result };
-    await db.saveProfile(updated);
-    setProfile(updated);
-    setAiLoading(false);
+    if (!foundationSupported) {
+      Alert.alert("Feature Unavailable", "This feature requires a device with Apple Foundation Models (iPhone 15 Pro or newer).");
+      return;
+    }
+    try {
+      setAiLoading(true);
+      const result = await analyzeStudentArchetypes(profile, activities, projects);
+
+      // EXTRA SAFETY: Ensure result is valid
+      if (!result || !result.narratives || !Array.isArray(result.narratives)) {
+        throw new Error("AI returned invalid data format");
+      }
+
+      const updated = { ...profile, archetype: result.narratives[0]?.archetype_name, narrativeAnalysis: result };
+      await db.saveProfile(updated);
+      setProfile(updated);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to analyze strategy. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleSearchCollege = (term: string) => {
@@ -671,10 +696,16 @@ export default function App() {
 
   const handlePolish = async () => {
     if (!editingActivity) return;
-    setAiLoading(true);
-    const polished = await polishDescription(editingActivity.description, profile?.targetMajor || 'General');
-    setEditingActivity({ ...editingActivity, description: polished });
-    setAiLoading(false);
+    try {
+      setAiLoading(true);
+      const polished = await polishDescription(editingActivity.description, profile?.targetMajor || 'General');
+      setEditingActivity({ ...editingActivity, description: polished });
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to polish description. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleAnalyzeImpact = async () => {
@@ -691,116 +722,132 @@ export default function App() {
       ? Math.abs(currentDescLength - storedDescLength) / storedDescLength
       : 1;
 
-    // If core (position/org) is same AND description hasn't changed significantly (less than 30%)
-    // AND analysis is already visible (expanded), use cached result seamlessly
-    if (editingActivity.tier && storedHash === contentHash && descLengthChange < 0.3 && impactAnalysis && analysisExpanded) {
-      // Show loading animation for natural UX (pretend to recalculate)
+    try {
+      // If core (position/org) is same AND description hasn't changed significantly (less than 30%)
+      // AND analysis is already visible (expanded), use cached result seamlessly
+      if (editingActivity.tier && storedHash === contentHash && descLengthChange < 0.3 && impactAnalysis && analysisExpanded) {
+        // Show loading animation for natural UX (pretend to recalculate)
+        setAiLoading(true);
+
+        // Simulate AI processing time (500-800ms)
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 500 + Math.random() * 300));
+
+        // Display the same analysis (no actual AI call, no changes)
+        setAnalysisExpanded(true);
+        return;
+      }
+
+      // If analysis section is NOT visible/expanded, allow recalculation even without major changes
+      // This handles the case where user closed it and wants to see it again
+      if (editingActivity.tier && storedHash === contentHash && descLengthChange < 0.3 && (!impactAnalysis || !analysisExpanded)) {
+        // Use cached score/rank but generate fresh feedback text
+        setAiLoading(true);
+
+        // Simulate loading
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 500 + Math.random() * 300));
+
+        // Convert tier back to score to maintain consistency
+        const cachedScore = 11 - (editingActivity.tier || 5);
+
+        // Generate rank name based on cached score
+        const getRankName = (score: number): string => {
+          if (score >= 10) return 'Diamond I';
+          if (score >= 9) return 'Platinum I';
+          if (score >= 8) return 'Gold II';
+          if (score >= 7) return 'Gold I';
+          if (score >= 6) return 'Silver III';
+          if (score >= 5) return 'Silver II';
+          if (score >= 4) return 'Silver I';
+          if (score >= 3) return 'Bronze II';
+          if (score >= 2) return 'Bronze I';
+          return 'Iron';
+        };
+
+        // Show cached result with consistent score/rank
+        setImpactAnalysis({
+          score: cachedScore,
+          rank_name: getRankName(cachedScore),
+          rank_description: `Your activity maintains a Tier ${editingActivity.tier} ranking based on impact, leadership, and competitiveness.`,
+          brutal_feedback: `Your current tier (${editingActivity.tier}) reflects the strength of this activity. To improve your ranking, consider making more substantial changes to your role, achievements, or description.`,
+          level_up_action: `To reach the next tier, expand the scope of your role or achieve measurable competitive results that demonstrate greater impact.`
+        });
+
+        setAnalysisExpanded(true);
+        return;
+      }
+
+      // Significant change detected or first analysis - run AI
       setAiLoading(true);
+      const analysis = await analyzeActivityImpact(editingActivity, profile?.targetMajor);
+      console.log('[Activity Impact] Analysis result:', JSON.stringify(analysis, null, 2));
+      setImpactAnalysis(analysis);
+      setAnalysisExpanded(true); // Auto-expand when new analysis comes in
+      // Convert score (1-10) to tier: tier 1 = 10/10, tier 10 = 1/10
+      // Formula: tier = 11 - score
+      const tier = 11 - analysis.score;
 
-      // Simulate AI processing time (500-800ms)
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 500 + Math.random() * 300));
-
-      // Display the same analysis (no actual AI call, no changes)
-      setAnalysisExpanded(true);
-      setAiLoading(false);
-      return;
-    }
-
-    // If analysis section is NOT visible/expanded, allow recalculation even without major changes
-    // This handles the case where user closed it and wants to see it again
-    if (editingActivity.tier && storedHash === contentHash && descLengthChange < 0.3 && (!impactAnalysis || !analysisExpanded)) {
-      // Use cached score/rank but generate fresh feedback text
-      setAiLoading(true);
-
-      // Simulate loading
-      await new Promise<void>(resolve => setTimeout(() => resolve(), 500 + Math.random() * 300));
-
-      // Convert tier back to score to maintain consistency
-      const cachedScore = 11 - (editingActivity.tier || 5);
-
-      // Generate rank name based on cached score
-      const getRankName = (score: number): string => {
-        if (score >= 10) return 'Diamond I';
-        if (score >= 9) return 'Platinum I';
-        if (score >= 8) return 'Gold II';
-        if (score >= 7) return 'Gold I';
-        if (score >= 6) return 'Silver III';
-        if (score >= 5) return 'Silver II';
-        if (score >= 4) return 'Silver I';
-        if (score >= 3) return 'Bronze II';
-        if (score >= 2) return 'Bronze I';
-        return 'Iron';
+      // CRITICAL: Update the activity with the NEW baseline immediately
+      // This ensures future comparisons use this version as the reference point
+      const updatedActivity = {
+        ...editingActivity,
+        tier,
+        contentHash, // NEW baseline: current position|organization
+        descriptionLength: currentDescLength // NEW baseline: current description length
       };
 
-      // Show cached result with consistent score/rank
-      setImpactAnalysis({
-        score: cachedScore,
-        rank_name: getRankName(cachedScore),
-        rank_description: `Your activity maintains a Tier ${editingActivity.tier} ranking based on impact, leadership, and competitiveness.`,
-        brutal_feedback: `Your current tier (${editingActivity.tier}) reflects the strength of this activity. To improve your ranking, consider making more substantial changes to your role, achievements, or description.`,
-        level_up_action: `To reach the next tier, expand the scope of your role or achieve measurable competitive results that demonstrate greater impact.`
-      });
-
-      setAnalysisExpanded(true);
+      setEditingActivity(updatedActivity);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to analyze impact. Please try again.');
+    } finally {
       setAiLoading(false);
-      return;
     }
-
-    // Significant change detected or first analysis - run AI
-    setAiLoading(true);
-    const analysis = await analyzeActivityImpact(editingActivity, profile?.targetMajor);
-    console.log('[Activity Impact] Analysis result:', JSON.stringify(analysis, null, 2));
-    setImpactAnalysis(analysis);
-    setAnalysisExpanded(true); // Auto-expand when new analysis comes in
-    // Convert score (1-10) to tier: tier 1 = 10/10, tier 10 = 1/10
-    // Formula: tier = 11 - score
-    const tier = 11 - analysis.score;
-
-    // CRITICAL: Update the activity with the NEW baseline immediately
-    // This ensures future comparisons use this version as the reference point
-    const updatedActivity = {
-      ...editingActivity,
-      tier,
-      contentHash, // NEW baseline: current position|organization
-      descriptionLength: currentDescLength // NEW baseline: current description length
-    };
-
-    setEditingActivity(updatedActivity);
-    setAiLoading(false);
   };
 
   const handleGenerateResume = async () => {
     if (!hasAdvancedAI) {
       Alert.alert(
         'Feature Unavailable',
-        'Resume generation requires iPhone 15 Pro or newer with Apple Intelligence support.',
+        'Resume generation requires iPhone 15 Pro or newer with Apple Intelligence support, later updates may support this feature.',
         [{ text: 'OK' }]
       );
       return;
     }
     if (!profile) return;
-    setAiLoading(true);
-    const data = await generateResume(profile, activities, projects);
-    setResumeData(data);
-    setView('resume');
-    setAiLoading(false);
+    try {
+      setAiLoading(true);
+      const data = await generateResume(profile, activities, projects);
+      setResumeData(data);
+      setView('resume');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to generate resume. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleGenerateBragSheet = async () => {
     if (!hasAdvancedAI) {
       Alert.alert(
         'Feature Unavailable',
-        'Brag Sheet generation requires iPhone 15 Pro or newer with Apple Intelligence support.',
+        'Brag Sheet generation requires iPhone 15 Pro or newer with Apple Intelligence support, later updates may support this feature',
         [{ text: 'OK' }]
       );
       return;
     }
     if (!profile) return;
-    setAiLoading(true);
-    const data = await generateBragSheet(profile, activities);
-    setBragSheetData(data);
-    setView('brag-sheet');
-    setAiLoading(false);
+    try {
+      setAiLoading(true);
+      const data = await generateBragSheet(profile, activities);
+      setBragSheetData(data);
+      setView('brag-sheet');
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Failed to generate brag sheet. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleDownloadResume = async () => {
@@ -867,37 +914,40 @@ export default function App() {
               {/* --- VIEW: DASHBOARD --- */}
               {view === 'dashboard' && (
                 <View style={s.container}>
-                  {profile?.narrativeAnalysis ? (
-                    <View style={s.brandCard}>
-                      <View style={s.brandHeader}>
-                        <Lightbulb color="#818cf8" size={24} />
-                        <View style={{ flex: 1, marginLeft: 10 }}>
-                          <Text style={s.brandTitle}>Your Personal Brand</Text>
-                          <Text style={s.brandSub}>Application Theme & Strategy</Text>
+                  {/* Only show Personal Brand if supported */}
+                  {foundationSupported && (
+                    profile?.narrativeAnalysis ? (
+                      <View style={s.brandCard}>
+                        <View style={s.brandHeader}>
+                          <Lightbulb color="#818cf8" size={24} />
+                          <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={s.brandTitle}>Your Personal Brand</Text>
+                            <Text style={s.brandSub}>Application Theme & Strategy</Text>
+                          </View>
+                          <TouchableOpacity onPress={handleAnalyzeStrategy} disabled={aiLoading} style={s.refreshBtn}>
+                            {aiLoading ? <ActivityIndicator color="#fff" size="small" /> : <RotateCcw size={14} color="#fff" />}
+                          </TouchableOpacity>
                         </View>
-                        <TouchableOpacity onPress={handleAnalyzeStrategy} disabled={aiLoading} style={s.refreshBtn}>
-                          {aiLoading ? <ActivityIndicator color="#fff" size="small" /> : <RotateCcw size={14} color="#fff" />}
+                        <Text style={s.brandSummary}>{profile.narrativeAnalysis.analysis_summary}</Text>
+                        <View style={s.archContainer}>
+                          {profile.narrativeAnalysis.narratives.map((nar: any, i: number) => (
+                            <View key={i} style={s.archItem}>
+                              <Text style={s.archName}>{nar.archetype_name}</Text>
+                              <Text style={s.archTag}>"{nar.tagline}"</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={s.heroCard}>
+                        <Sparkles color="#60a5fa" size={32} />
+                        <Text style={s.heroTitle}>Discover Your Archetype</Text>
+                        <Text style={s.heroSub}>Let AI analyze your story.</Text>
+                        <TouchableOpacity style={s.heroBtn} onPress={handleAnalyzeStrategy} disabled={aiLoading}>
+                          <Text style={s.heroBtnTxt}>{aiLoading ? "Analyzing..." : "Find My Personal Brand"}</Text>
                         </TouchableOpacity>
                       </View>
-                      <Text style={s.brandSummary}>{profile.narrativeAnalysis.analysis_summary}</Text>
-                      <View style={s.archContainer}>
-                        {profile.narrativeAnalysis.narratives.map((nar: any, i: number) => (
-                          <View key={i} style={s.archItem}>
-                            <Text style={s.archName}>{nar.archetype_name}</Text>
-                            <Text style={s.archTag}>"{nar.tagline}"</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={s.heroCard}>
-                      <Sparkles color="#60a5fa" size={32} />
-                      <Text style={s.heroTitle}>Discover Your Archetype</Text>
-                      <Text style={s.heroSub}>Let AI analyze your story.</Text>
-                      <TouchableOpacity style={s.heroBtn} onPress={handleAnalyzeStrategy} disabled={aiLoading}>
-                        <Text style={s.heroBtnTxt}>{aiLoading ? "Analyzing..." : "Find My Personal Brand"}</Text>
-                      </TouchableOpacity>
-                    </View>
+                    )
                   )}
 
                   <View style={s.sectionHead}>
@@ -1095,7 +1145,6 @@ export default function App() {
                           </View>
                           <View style={{ flex: 1, alignItems: 'flex-end' }}>
                             <Text style={s.scoreRank}>{impactAnalysis.rank_name}</Text>
-                            <Text style={s.scoreLabel}>{impactAnalysis.rank_description}</Text>
                           </View>
                         </View>
                         <View style={s.minimizeBtn}>
@@ -1372,179 +1421,237 @@ export default function App() {
 
               {/* --- PREVIEW: RESUME --- */}
               {view === 'resume' && resumeData && (
-                <View style={s.printPage}>
-                  <Text style={s.printName}>{profile?.name}</Text>
-                  <Text style={s.printContact}>{profile?.email} | {profile?.graduatingClass || `Class of ${profile?.graduationYear}`}</Text>
+                <>
+                  <View style={{ height: Platform.OS === 'ios' ? 40 : 0 }} />
+                  <View style={s.printPage}>
+                    <Text style={s.printName}>{profile?.name}</Text>
+                    <Text style={s.printContact}>{profile?.email} | {profile?.graduatingClass || `Class of ${profile?.graduationYear}`}</Text>
 
-                  <Text style={s.printHeader}>EXPERIENCE</Text>
-                  {resumeData.experience.map((exp: any, i: number) => (
-                    <View key={i} style={s.printItem}>
-                      <View style={s.printItemHeader}>
-                        <Text style={[s.printBold, { flex: 1, flexShrink: 1 }]}>{exp.role}</Text>
-                        <Text style={s.printDate}>{exp.dates}</Text>
-                      </View>
-                      <Text style={s.printItalic}>{exp.organization}</Text>
-                      <View style={s.printBulletList}>
-                        {exp.bullets.map((b: string, j: number) => (
-                          <View key={j} style={s.printBulletItem}>
-                            <Text style={s.printBulletDot}>•</Text>
-                            <TextInput
-                              style={s.printBulletText}
-                              value={b}
-                              onChangeText={(text) => {
-                                if (text.trim() === '' && b.trim() !== '') {
-                                  Alert.alert('Delete Line', 'Do you want to delete this bullet point?', [
-                                    { text: 'Cancel', style: 'cancel' },
-                                    {
-                                      text: 'OK', onPress: () => {
-                                        const updated = { ...resumeData };
-                                        updated.experience[i].bullets.splice(j, 1);
-                                        setResumeData(updated);
-                                      }
-                                    }
-                                  ]);
-                                } else {
-                                  const updated = { ...resumeData };
-                                  updated.experience[i].bullets[j] = text;
-                                  setResumeData(updated);
-                                }
-                              }}
-                              multiline
-                            />
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  ))}
-
-                  {/* Projects Section */}
-                  {resumeData.projects && resumeData.projects.length > 0 && (
-                    <>
-                      <Text style={s.printHeader}>PROJECTS</Text>
-                      {resumeData.projects.map((proj: any, i: number) => (
-                        <View key={i} style={s.printItem}>
-                          <View style={s.printItemHeader}>
-                            <Text style={[s.printBold, { flex: 1, flexShrink: 1 }]}>{proj.title}</Text>
-                            <Text style={s.printDate}>{proj.dates}</Text>
-                          </View>
-                          {proj.skills && <Text style={s.printSkills}>{proj.skills}</Text>}
-                          {proj.bullets && proj.bullets.length > 0 && (
-                            <View style={s.printBulletList}>
-                              {proj.bullets.map((b: string, j: number) => (
-                                <View key={j} style={s.printBulletItem}>
-                                  <Text style={s.printBulletDot}>•</Text>
-                                  <TextInput
-                                    style={s.printBulletText}
-                                    value={b}
-                                    onChangeText={(text) => {
-                                      if (text.trim() === '' && b.trim() !== '') {
-                                        Alert.alert('Delete Line', 'Do you want to delete this bullet point?', [
-                                          { text: 'Cancel', style: 'cancel' },
-                                          {
-                                            text: 'OK', onPress: () => {
-                                              const updated = { ...resumeData };
-                                              updated.projects![i].bullets.splice(j, 1);
-                                              setResumeData(updated);
-                                            }
-                                          }
-                                        ]);
-                                      } else {
-                                        const updated = { ...resumeData };
-                                        updated.projects![i].bullets[j] = text;
-                                        setResumeData(updated);
-                                      }
-                                    }}
-                                    multiline
-                                  />
-                                </View>
-                              ))}
-                            </View>
-                          )}
+                    <Text style={s.printHeader}>EXPERIENCE</Text>
+                    {resumeData.experience && resumeData.experience.map((exp: any, i: number) => (
+                      <View key={i} style={s.printItem}>
+                        <View style={s.printItemHeader}>
+                          <TextInput
+                            style={[s.printBold, { flex: 1, flexShrink: 1, padding: 0 }]}
+                            value={exp.role}
+                            onChangeText={(text) => {
+                              const updated = { ...resumeData };
+                              updated.experience[i].role = text;
+                              setResumeData(updated);
+                            }}
+                          />
+                          <TextInput
+                            style={[s.printDate, { padding: 0 }]}
+                            value={exp.dates}
+                            onChangeText={(text) => {
+                              const updated = { ...resumeData };
+                              updated.experience[i].dates = text;
+                              setResumeData(updated);
+                            }}
+                          />
                         </View>
-                      ))}
-                    </>
-                  )}
+                        <TextInput
+                          style={[s.printItalic, { padding: 0 }]}
+                          value={exp.organization}
+                          onChangeText={(text) => {
+                            const updated = { ...resumeData };
+                            updated.experience[i].organization = text;
+                            setResumeData(updated);
+                          }}
+                        />
+                        <View style={s.printBulletList}>
+                          {exp.bullets.map((b: string, j: number) => (
+                            <View key={j} style={s.printBulletItem}>
+                              <Text style={s.printBulletDot}>•</Text>
+                              <TextInput
+                                style={s.printBulletText}
+                                value={b}
+                                onChangeText={(text) => {
+                                  if (text.trim() === '' && b.trim() !== '') {
+                                    Alert.alert('Delete Line', 'Do you want to delete this bullet point?', [
+                                      { text: 'Cancel', style: 'cancel' },
+                                      {
+                                        text: 'OK', onPress: () => {
+                                          const updated = { ...resumeData };
+                                          updated.experience[i].bullets.splice(j, 1);
+                                          setResumeData(updated);
+                                        }
+                                      }
+                                    ]);
+                                  } else {
+                                    const updated = { ...resumeData };
+                                    updated.experience[i].bullets[j] = text;
+                                    setResumeData(updated);
+                                  }
+                                }}
+                                multiline
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
 
-                  {/* Skills Section */}
-                  {resumeData.skills && resumeData.skills.length > 0 && (
-                    <>
-                      <Text style={s.printHeader}>SKILLS</Text>
-                      <Text style={s.printBody}>{resumeData.skills.join(', ')}</Text>
-                    </>
-                  )}
-
-                  {/* Awards Section */}
-                  {resumeData.awards && resumeData.awards.length > 0 && (
-                    <>
-                      <Text style={s.printHeader}>AWARDS & HONORS</Text>
-                      <View style={s.printBulletList}>
-                        {resumeData.awards.map((award: string, i: number) => (
-                          <View key={i} style={s.printBulletItem}>
-                            <Text style={s.printBulletDot}>•</Text>
-                            <Text style={s.printBulletText}>{award}</Text>
+                  <View style={s.printPage}>
+                    {/* Projects Section */}
+                    {resumeData.projects && resumeData.projects.length > 0 && (
+                      <>
+                        <Text style={s.printHeader}>PROJECTS</Text>
+                        {resumeData.projects.map((proj: any, i: number) => (
+                          <View key={i} style={s.printItem}>
+                            <View style={s.printItemHeader}>
+                              <TextInput
+                                style={[s.printBold, { flex: 1, flexShrink: 1, padding: 0 }]}
+                                value={proj.title}
+                                onChangeText={(text) => {
+                                  const updated = { ...resumeData };
+                                  updated.projects![i].title = text;
+                                  setResumeData(updated);
+                                }}
+                              />
+                              <TextInput
+                                style={[s.printDate, { padding: 0 }]}
+                                value={proj.dates}
+                                onChangeText={(text) => {
+                                  const updated = { ...resumeData };
+                                  updated.projects![i].dates = text;
+                                  setResumeData(updated);
+                                }}
+                              />
+                            </View>
+                            {proj.skills && (
+                              <TextInput
+                                style={[s.printSkills, { padding: 0 }]}
+                                value={proj.skills}
+                                onChangeText={(text) => {
+                                  const updated = { ...resumeData };
+                                  updated.projects![i].skills = text;
+                                  setResumeData(updated);
+                                }}
+                              />
+                            )}
+                            {proj.bullets && proj.bullets.length > 0 && (
+                              <View style={s.printBulletList}>
+                                {proj.bullets.map((b: string, j: number) => (
+                                  <View key={j} style={s.printBulletItem}>
+                                    <Text style={s.printBulletDot}>•</Text>
+                                    <TextInput
+                                      style={s.printBulletText}
+                                      value={b}
+                                      onChangeText={(text) => {
+                                        if (text.trim() === '' && b.trim() !== '') {
+                                          Alert.alert('Delete Line', 'Do you want to delete this bullet point?', [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            {
+                                              text: 'OK', onPress: () => {
+                                                const updated = { ...resumeData };
+                                                updated.projects![i].bullets.splice(j, 1);
+                                                setResumeData(updated);
+                                              }
+                                            }
+                                          ]);
+                                        } else {
+                                          const updated = { ...resumeData };
+                                          updated.projects![i].bullets[j] = text;
+                                          setResumeData(updated);
+                                        }
+                                      }}
+                                      multiline
+                                    />
+                                  </View>
+                                ))}
+                              </View>
+                            )}
                           </View>
                         ))}
-                      </View>
-                    </>
-                  )}
+                      </>
+                    )}
 
-                  <TouchableOpacity style={[s.saveBtn, { marginTop: 20 }]} onPress={handleDownloadResume}>
-                    <Download color="#000" size={18} style={{ marginRight: 8 }} />
-                    <Text style={s.saveBtnTxt}>Download Resume</Text>
-                  </TouchableOpacity>
+                    {/* Skills Section */}
+                    {resumeData.skills && resumeData.skills.length > 0 && (
+                      <>
+                        <Text style={s.printHeader}>SKILLS</Text>
+                        <Text style={s.printBody}>{resumeData.skills.join(', ')}</Text>
+                      </>
+                    )}
 
-                  <TouchableOpacity style={s.closePreviewBtn} onPress={() => setView('export')}><Text style={s.closePreviewTxt}>Close Preview</Text></TouchableOpacity>
-                </View>
+                    {/* Awards Section */}
+                    {resumeData.awards && resumeData.awards.length > 0 && (
+                      <>
+                        <Text style={s.printHeader}>AWARDS & HONORS</Text>
+                        <View style={s.printBulletList}>
+                          {resumeData.awards.map((award: string, i: number) => (
+                            <View key={i} style={s.printBulletItem}>
+                              <Text style={s.printBulletDot}>•</Text>
+                              <Text style={s.printBulletText}>{award}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </>
+                    )}
+
+                    <TouchableOpacity style={[s.saveBtn, { marginTop: 20 }]} onPress={handleDownloadResume}>
+                      <Download color="#000" size={18} style={{ marginRight: 8 }} />
+                      <Text style={s.saveBtnTxt}>Download Resume</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={s.closePreviewBtn} onPress={() => setView('export')}><Text style={s.closePreviewTxt}>Close Preview</Text></TouchableOpacity>
+                  </View>
+                </>
               )}
 
               {/* --- PREVIEW: BRAG SHEET --- */}
               {view === 'brag-sheet' && bragSheetData && (
-                <View style={s.printPage}>
-                  <Text style={s.printName}>{profile?.name}</Text>
-                  <Text style={s.printContact}>Target Major: {profile?.targetMajor}</Text>
+                <>
+                  <View style={{ height: Platform.OS === 'ios' ? 40 : 0 }} />
+                  <View style={s.printPage}>
+                    <Text style={s.printName}>{profile?.name}</Text>
+                    <Text style={s.printContact}>Target Major: {profile?.targetMajor}</Text>
 
-                  <View style={s.printBox}>
-                    <Text style={s.printHeader}>About Me</Text>
-                    <TextInput
-                      style={[s.printBody, { borderBottomWidth: 1, borderBottomColor: '#e5e5e5' }]}
-                      value={bragSheetData.introaryStatement}
-                      onChangeText={(text) => setBragSheetData({ ...bragSheetData, introaryStatement: text })}
-                      multiline
-                    />
-                  </View>
-
-                  <Text style={s.printHeader}>Key Experiences</Text>
-                  {bragSheetData.keyExperiences.map((exp: any, i: number) => (
-                    <View key={i} style={{ marginBottom: 15 }}>
+                    <View style={s.printBox}>
+                      <Text style={s.printHeader}>About Me</Text>
                       <TextInput
-                        style={[s.printBold, { borderBottomWidth: 1, borderBottomColor: '#e5e5e5' }]}
-                        value={exp.title}
-                        onChangeText={(text) => {
-                          const updated = { ...bragSheetData };
-                          updated.keyExperiences[i].title = text;
-                          setBragSheetData(updated);
-                        }}
-                      />
-                      <TextInput
-                        style={[s.printBody, { borderBottomWidth: 1, borderBottomColor: '#e5e5e5', marginTop: 4 }]}
-                        value={exp.narrative}
-                        onChangeText={(text) => {
-                          const updated = { ...bragSheetData };
-                          updated.keyExperiences[i].narrative = text;
-                          setBragSheetData(updated);
-                        }}
+                        style={[s.printBody, { borderBottomWidth: 1, borderBottomColor: '#e5e5e5' }]}
+                        value={bragSheetData.introaryStatement}
+                        onChangeText={(text) => setBragSheetData({ ...bragSheetData, introaryStatement: text })}
                         multiline
                       />
                     </View>
-                  ))}
 
-                  <TouchableOpacity style={[s.saveBtn, { marginTop: 20 }]} onPress={handleDownloadBragSheet}>
-                    <Download color="#000" size={18} style={{ marginRight: 8 }} />
-                    <Text style={s.saveBtnTxt}>Download Brag Sheet</Text>
-                  </TouchableOpacity>
+                    <Text style={s.printHeader}>Key Experiences</Text>
+                    {bragSheetData.keyExperiences && bragSheetData.keyExperiences.map((exp: any, i: number) => (
+                      <View key={i} style={{ marginBottom: 15 }}>
+                        <TextInput
+                          style={[s.printBold, { borderBottomWidth: 1, borderBottomColor: '#e5e5e5' }]}
+                          value={exp.title}
+                          onChangeText={(text) => {
+                            const updated = { ...bragSheetData };
+                            updated.keyExperiences[i].title = text;
+                            setBragSheetData(updated);
+                          }}
+                        />
+                        <TextInput
+                          style={[s.printBody, { borderBottomWidth: 1, borderBottomColor: '#e5e5e5', marginTop: 4 }]}
+                          value={exp.narrative}
+                          onChangeText={(text) => {
+                            const updated = { ...bragSheetData };
+                            updated.keyExperiences[i].narrative = text;
+                            setBragSheetData(updated);
+                          }}
+                          multiline
+                        />
+                      </View>
+                    ))}
 
-                  <TouchableOpacity style={s.closePreviewBtn} onPress={() => setView('export')}><Text style={s.closePreviewTxt}>Close Preview</Text></TouchableOpacity>
-                </View>
+                    <TouchableOpacity style={[s.saveBtn, { marginTop: 20 }]} onPress={handleDownloadBragSheet}>
+                      <Download color="#000" size={18} style={{ marginRight: 8 }} />
+                      <Text style={s.saveBtnTxt}>Download Brag Sheet</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={s.closePreviewBtn} onPress={() => setView('export')}><Text style={s.closePreviewTxt}>Close Preview</Text></TouchableOpacity>
+                  </View>
+                </>
               )}
 
               {/* --- VIEW: PROFILE EDITOR --- */}
@@ -1775,7 +1882,7 @@ const s = StyleSheet.create({
   deleteBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20 },
   deleteBtnTxt: { color: '#f87171', fontWeight: 'bold' },
   analysisCard: { marginTop: 20, padding: 20, backgroundColor: '#000', borderWidth: 1, borderColor: '#3f3f46', borderRadius: 16 },
-  analysisHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+  analysisHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 20 },
   minimizeBtn: { marginLeft: 10 },
   scoreTxt: { color: '#fff', fontSize: 32, fontWeight: '900' },
   scoreRank: { color: '#fff', fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },

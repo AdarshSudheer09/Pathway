@@ -7,62 +7,24 @@ import {
 
 // --- DATA CONSTANTS (SOURCE OF TRUTH) ---
 const RANK_RUBRIC = `
-01 | Bronze I
-- Hobbies: Casual fitness, gaming, reading, photography, blogging (low reach), recreational cooking.
-- School Clubs: General member in Chess, Anime, Gardening, Film, Art, or Language clubs.
-- Community: Local library volunteer, church choir, animal shelter assistant, park cleanup.
-- Academics: Honor Roll, Perfect Attendance, taking 1-2 AP/IB courses, school-level peer tutor.
-- Athletics: JV team member, Intramural sports, recreational league participant.
+01 | Platinum II
+- Olympiads: IMO/IChO/IBO/IPhO/IOI Medalist (International stage).
+- National Winners: USAMO Winner (Top 12), USNCO/USABO/USAPhO Gold Medalist (Top 20/Winner), 1st Place at ANY National Competition (Science Olympiad, Science Bowl, FBLA, DECA ICDC).
+- Research: Regeneron STS Top 10, ISEF Grand Prize Winner (Gordon E. Moore Award).
+- Societal: Thiel Fellow, Major published Author (Big 5 publishers), NYT Editorial Contest Winner.
+- Innovation: Breakthrough Junior Challenge Winner, 3M Young Scientist Winner.
+- Athletics: Individual National Champion (Swimming, Tennis, Golf, etc.), Olympic Medalist.
+- Leadership: Boys/Girls Nation President, USSYP National Representative.
 
-02 | Bronze II
-- Sports: JV Captain, Varsity member (non-starter), Intramural referee, lifeguard certified.
-- Arts: Band/Orchestra/Choir (regular member), School play ensemble, Stage crew, private music lessons.
-- Jobs: Cashier, server, retail, babysitting, lawn mowing, CPR/First Aid certified.
-- Leadership: Secretary/Treasurer of a niche club, founder of a casual/interest-based school club.
-- Tech: CompTIA IT Fundamentals+, Certified SolidWorks Associate (CSWA), completed a Coursera/EdX cert.
-- Awards: Local essay contest (honorable mention), school-wide "Student of the Month."
+02 | Platinum I
+- Competitions: USACO Camp, MOP (Red/Blue), US Physics Team (Top 24).
+- Elite Research: RSI (Research Science Institute) Participant, Regeneron STS Top 40 (Finalist).
+- Sports: D1 Recruited Athlete (Top 10 program), National Team Member (Olympic Developmental).
+- Arts: YoungArts Finalist, Presidential Scholar in the Arts, Juilliard Pre-College (Advanced).
+- Civic: Youth Poet Laureate (National), National Student Poet.
+- Tech: VEX Robotics World Champion.
 
-03 | Silver I
-- Leadership: Multi-club officer, Student Council Representative, Youth Group Leader, Eagle Scout/Gold Award.
-- Sports: Varsity Starter, All-League honorable mention, Regional qualifier in individual sports (Cross Country/Track).
-- Arts: Lead role in school musical, Section Leader in Band, Scholastic Art & Writing Regional Honorable Mention.
-- Academic/Service: 150+ Volunteer hours, President’s Volunteer Service Award (Bronze/Silver), 4-5 AP courses.
-- Pre-Professional: Shadowing a professional (20+ hours), Real estate intern, Bank teller, local tutoring business.
-- Awards: National Merit Commended, National Honor Society (NHS) member, Beta Club, Honor Roll (3+ years).
-
-04 | Silver II
-- Competitions: FBLA/DECA State Placer, SkillsUSA State Placer, Science Olympiad Regional Medalist, MUN Gavel.
-- Arts: All-District Band/Orchestra, Lead in community theater, Scholastic Art & Writing Regional Silver Key.
-- Leadership: Student Body VP, Class President, Founder of a local non-profit (documented impact).
-- Journalism: Newspaper Editor, Yearbook Editor-in-Chief, Literary Magazine Founder.
-- Tech: Published App (100-1000 users), Top 10% in Regional Hackathon, open-source contributor (minor).
-- Awards: National Merit Semifinalist, AP Scholar with Distinction, State History Day Participant.
-
-05 | Gold I
-- Competitions: USACO Silver, AIME Qualifier, National History Day (NHD) State Winner, TSA State Medalist.
-- Summer: COSMOS (UC), Yale Young Global Scholars (YYGS), Notre Dame Leadership Seminars, HOBY Delegate.
-- Sports: All-Conference selection, State-level individual qualifier, Varsity Captain (multiple years).
-- Service: President’s Volunteer Service Award (Gold), Congressional Award (Bronze/Silver).
-- Civic: Governor’s School (Standard), City Council Youth Advisor, Boys/Girls State Delegate.
-- Tech: Published App (1,000-10,000 users), Winner at regional Hackathon, FIRST Dean's List Finalist.
-
-06 | Gold II
-- Competitions: USACO Gold, AMC 12 Honor Roll, USNCO Honors, USABO Semifinalist, HOSA ILC Top 10.
-- Arts: All-State Music (Band/Orchestra), Scholastic Art & Writing National Silver, All-Eastern/All-Regional Music.
-- Academic: Publication in an undergraduate research journal, 1st author in high school research symposium.
-- Leadership: Student Body President (Large school), DECA ICDC Finalist, Model UN Head Delegate.
-- Tech: Published App (10,000+ users), Major Tech Internship (local startup), National Hackathon Winner.
-- Awards: Congressional App Challenge Winner (District), PEYA Regional Winner, NCWIT National Winner.
-
-07 | Diamond I
-- Competitions: USACO Platinum, USAMO/USAJMO Qualifier, AIME Top Score, NSDA Nationals Breaker.
-- Research: Published as 1st or 2nd author in a peer-reviewed journal (Q1/Q2 Impact).
-- Elite Summer: TASP, Bank of America Student Leaders, Wharton LBW, MITES, Governor's School (Highly Selective).
-- Arts: All-National Music Participant, Scholastic Gold Medal (National), YoungArts Winner (Merit/Honorable Mention).
-- Civic: Boys/Girls State Governor, State Board of Education Student Representative, US Senate Page.
-- Awards: Coolidge Senator (Finalist), National Merit Finalist, LEDA Scholar, NSLI-Y Participant.
-
-08 | Diamond II
+03 | Diamond II
 - Competitions: USNCO/USABO/USAPhO Top 20 (Finalist), USAMO Winner, IPPF Top 32, CyberPatriot National Top Scorer.
 - Research: Regeneron STS Scholar (Top 300), ISEF Category Award (1st-3rd), JSHS National Finalist.
 - Civic: Boys/Girls Nation Senator, United States Senate Youth Program (USSYP), Congressional Award Gold.
@@ -70,21 +32,60 @@ const RANK_RUBRIC = `
 - Entrepreneurship: Founder of revenue-generating startup ($50k+ revenue), Thiel Fellowship Finalist.
 - Arts: National High School Musical Theatre Awards (Jimmy Awards) Finalist, NYO-USA Member.
 
-09 | Platinum I
-- Competitions: USACO Camp, MOP (Red/Blue), US Physics Team (Top 24), National Science Bowl Winner.
-- Elite Research: RSI (Research Science Institute) Participant, Regeneron STS Top 40 (Finalist).
-- Sports: D1 Recruited Athlete (Top 10 program), National Team Member (Olympic Developmental).
-- Arts: YoungArts Finalist, Presidential Scholar in the Arts, Juilliard Pre-College (Advanced).
-- Civic: Youth Poet Laureate (National), National Student Poet.
-- Tech: VEX Robotics World Champion, DECA ICDC 1st Place.
+04 | Diamond I
+- Competitions: USACO Platinum, USAMO/USAJMO Qualifier, AIME Top Score, NSDA Nationals Breaker.
+- Research: Published as 1st or 2nd author in a peer-reviewed journal (Q1/Q2 Impact).
+- Elite Summer: TASP, Bank of America Student Leaders, Wharton LBW, MITES, Governor's School (Highly Selective).
+- Arts: All-National Music Participant, Scholastic Gold Medal (National), YoungArts Winner (Merit/Honorable Mention).
+- Civic: Boys/Girls State Governor, State Board of Education Student Representative, US Senate Page.
+- Awards: Coolidge Senator (Finalist), National Merit Finalist, LEDA Scholar, NSLI-Y Participant.
 
-10 | Platinum II
-- Olympiads: IMO/IChO/IBO/IPhO/IOI Medalist (International stage).
-- Research: Regeneron STS Top 10, ISEF Grand Prize Winner (Gordon E. Moore Award).
-- Societal: Thiel Fellow, Major published Author (Big 5 publishers), NYT Editorial Contest Winner.
-- Innovation: Breakthrough Junior Challenge Winner, 3M Young Scientist Winner.
-- Athletics: Individual National Champion (Swimming, Tennis, Golf, etc.), Olympic Medalist.
-- Leadership: Boys/Girls Nation President, USSYP National Representative.
+05 | Gold II
+- Competitions: USACO Gold, AMC 12 Honor Roll, USNCO Honors, USABO Semifinalist, HOSA ILC Top 10.
+- Arts: All-State Music (Band/Orchestra), Scholastic Art & Writing National Silver, All-Eastern/All-Regional Music.
+- Academic: Publication in an undergraduate research journal, 1st author in high school research symposium.
+- Leadership: Student Body President (Large school), DECA ICDC Finalist, Model UN Head Delegate.
+- Tech: Published App (10,000+ users), Major Tech Internship (local startup), National Hackathon Winner.
+- Awards: Congressional App Challenge Winner (District), PEYA Regional Winner, NCWIT National Winner.
+
+06 | Gold I
+- Competitions: USACO Silver, AIME Qualifier, National History Day (NHD) State Winner, TSA State Medalist.
+- Summer: COSMOS (UC), Yale Young Global Scholars (YYGS), Notre Dame Leadership Seminars, HOBY Delegate.
+- Sports: All-Conference selection, State-level individual qualifier, Varsity Captain (multiple years).
+- Service: President’s Volunteer Service Award (Gold), Congressional Award (Bronze/Silver).
+- Civic: Governor’s School (Standard), City Council Youth Advisor, Boys/Girls State Delegate.
+- Tech: Published App (1,000-10,000 users), Winner at regional Hackathon, FIRST Dean's List Finalist.
+
+07 | Silver II
+- Competitions: FBLA/DECA State Placer, SkillsUSA State Placer, Science Olympiad Regional Medalist, MUN Gavel.
+- Arts: All-District Band/Orchestra, Lead in community theater, Scholastic Art & Writing Regional Silver Key.
+- Leadership: Student Body VP, Class President, Founder of a local non-profit (documented impact).
+- Journalism: Newspaper Editor, Yearbook Editor-in-Chief, Literary Magazine Founder.
+- Tech: Published App (100-1000 users), Top 10% in Regional Hackathon, open-source contributor (minor).
+- Awards: National Merit Semifinalist, AP Scholar with Distinction, State History Day Participant.
+
+08 | Silver I
+- Leadership: Multi-club officer, Student Council Representative, Youth Group Leader, Eagle Scout/Gold Award.
+- Sports: Varsity Starter, All-League honorable mention, Regional qualifier in individual sports (Cross Country/Track).
+- Arts: Lead role in school musical, Section Leader in Band, Scholastic Art & Writing Regional Honorable Mention.
+- Academic/Service: 150+ Volunteer hours, President’s Volunteer Service Award (Bronze/Silver), 4-5 AP courses.
+- Pre-Professional: Shadowing a professional (20+ hours), Real estate intern, Bank teller, local tutoring business.
+- Awards: National Merit Commended, National Honor Society (NHS) member, Beta Club, Honor Roll (3+ years).
+
+09 | Bronze II
+- Sports: JV Captain, Varsity member (non-starter), Intramural referee, lifeguard certified.
+- Arts: Band/Orchestra/Choir (regular member), School play ensemble, Stage crew, private music lessons.
+- Jobs: Cashier, server, retail, babysitting, lawn mowing, CPR/First Aid certified.
+- Leadership: Secretary/Treasurer of a niche club, founder of a casual/interest-based school club.
+- Tech: CompTIA IT Fundamentals+, Certified SolidWorks Associate (CSWA), completed a Coursera/EdX cert.
+- Awards: Local essay contest (honorable mention), school-wide "Student of the Month."
+
+10 | Bronze I
+- Hobbies: Casual fitness, gaming, reading, photography, blogging (low reach), recreational cooking.
+- School Clubs: General member in Chess, Anime, Gardening, Film, Art, or Language clubs.
+- Community: Local library volunteer, church choir, animal shelter assistant, park cleanup.
+- Academics: Honor Roll, Perfect Attendance, taking 1-2 AP/IB courses, school-level peer tutor.
+- Athletics: JV team member, Intramural sports, recreational league participant.
 `;
 
 // --- UNIVERSAL LOCAL AI BRIDGE (FOUNDATION MODELS) ---
@@ -126,12 +127,10 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
           // Robust JSON Sanitizer
           let cleanText = response.trim();
 
-          // 1. Remove Markdown Code Blocks
-          if (cleanText.includes("```")) {
-            cleanText = cleanText.replace(/```json/g, "").replace(/```/g, "");
-          }
+          // 1. Remove Markdown Code Blocks (Standard & variants)
+          cleanText = cleanText.replace(/```json/gi, "").replace(/```/g, "");
 
-          // 2. Find the first '{' and the last '}'
+          // 2. Find the first '{' and the last '}' to extract JSON object
           const firstOpen = cleanText.indexOf('{');
           const lastClose = cleanText.lastIndexOf('}');
 
@@ -140,8 +139,11 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
           }
 
           // 3. Trailing Comma Fix (Common LLM Error)
-          // Replaces ", }" with "}" and ", ]" with "]"
           cleanText = cleanText.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+
+          // 4. Handle unescaped newlines within strings (basic attempt)
+          // This is risky but often needed for LLM outputs that contain multi-line strings without \n
+          // cleanText = cleanText.replace(/\n/g, "\\n"); 
 
           console.log('[LocalAI] Cleaned JSON text:', cleanText);
           const parsed = JSON.parse(cleanText);
@@ -150,22 +152,26 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
         } catch (parseError) {
           console.log("JSON Parse Error caught. Retrying with loose recovery...");
           console.error('[LocalAI] Parse error:', parseError);
+
           // Attempt basic recovery
           try {
-            // Sometimes quotes are escaped incorrectly
-            let fixed = response.replace(/'/g, '"');
-            // Try to fix trailing commas again on original
-            fixed = fixed.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
-            const first = fixed.indexOf('{');
-            const last = fixed.lastIndexOf('}');
-            if (first !== -1 && last !== -1) {
-              fixed = fixed.substring(first, last + 1);
-              return JSON.parse(fixed);
-            }
-            return null;
+            // Retry with a more aggressive cleaner if the first one failed
+            // Sometimes LLMs output things like: { "key": "value" } Note: ...
+            // We already tried substring, but maybe something else is wrong.
+
+            // Check for common error: escaping double quotes incorrectly
+            // e.g. "description": "He said "Hello"" -> "description": "He said \"Hello\""
+            // This is hard to fix with regex perfectly without breaking valid JSON.
+
+            // For now, let's just try to re-parse potential fragments if the substring logic failed previously
+            // or if there were hidden characters.
+
+            // One last ditch attempt: remove all control characters except allowed ones?
+            const sanitized = cleanText.replace(/[\u0000-\u0019]+/g, "");
+            return JSON.parse(sanitized);
           } catch (e) {
             console.log("Final JSON recovery failed.");
-            return null;
+            return null; // Return null so the caller uses fallback
           }
         }
       }
@@ -325,8 +331,9 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
     ${RANK_RUBRIC}
 
     **EXPLICIT SCORE MAPPING**:
-    - Bronze I = 1/10, Bronze II = 2/10 (Basic participation)
-    - Silver I = 3/10, Silver II = 4/10 (Local leadership/competition)
+    - Platinum II = 1/10 (Best), Platinum I = 2/10
+    - Bronze I = 9/10, Bronze II = 10/10 (Basic)
+    - Silver I = 7/10, Silver II = 8/10 (Local leadership/competition)
     - Gold I = 5/10, Gold II = 6/10 (State/Regional achievement)
     - Diamond I = 7/10, Diamond II = 8/10 (National achievement)
     - Platinum I = 9/10, Platinum II = 10/10 (International/Elite)
@@ -337,28 +344,44 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
     Activity: "${activity.position} at ${activity.organization}: ${activity.description}"
     ${activity.isMajorRelated ? `**USER NOTE**: The applicant has explicitly marked this activity as RELATED to their major (${targetMajor}). Trust this assertion and evaluate accordingly.` : ''}
 
+    **CALIBRATION RULES (NON-NEGOTIABLE):**
+    1. **NATIONAL WINNER = TIER 1 (Platinum II)**.
+       - "1st Place", "Winner", "Gold Medal", or "Champion" at any NATIONAL level competition (e.g., USAPhO, USNCO, National Science Olympiad, FBLA Nationals, DECA ICDC) is AUTOMATICALLY 1/10.
+       - Do NOT downgrade National Wins to Tier 2. They are Tier 1.
+    2. **NATIONAL FINALIST = TIER 3 (Diamond II)**.
+       - Top 20, Finalist, or National Qualifier is Tier 3.
+    3. **INTERNATIONAL MEDALIST = TIER 1**.
+    4. **STATE WINNER = TIER 5 (Gold II)**.
+
+    **INFERENCE & PREDICTION LOGIC (APPLY TO ALL TIERS)**:
+    - **Use the Rubric as training examples, NOT an exhaustive list.**
+    - **Tier 9-10 (Bronze)**: PATTERN = "Participant", "Member", "Volunteer". If the activity is casual participation or basic membership, infer Tier 9-10.
+    - **Tier 7-8 (Silver)**: PATTERN = "Local Leadership", "School Award", "Club Officer". If they lead at a school/city level or win local awards, infer Tier 7-8.
+    - **Tier 5-6 (Gold)**: PATTERN = "Regional/State Recognition". If they placed/won at a State level competition or lead a large regional initiative, infer Tier 5-6.
+    - **Tier 3-4 (Diamond)**: PATTERN = "National Qualifier/Finalist". If they reached the National level (e.g. Qualified for Nationals, Finalist) or have significant research, infer Tier 3-4.
+    - **Tier 1-2 (Platinum)**: PATTERN = "National/International WINNER". If they are #1 in the Country (National Champion) or Top in the World, infer Tier 1.
+    - **Instruction**: When you see an unlisted activity, match it to these PATTERNS.
+      * Example: "State Knitting Champion" matches "State Recognition" -> Tier 5.
+      * Example: "Founder of International Non-Profit (Featured in NYT)" matches "Elite/Societal" -> Tier 1.
+
     **IMPORTANT SCORING ADJUSTMENTS**:
-    - **CRITICAL**: Reserve 9-10/10 (Platinum) for ONLY national olympiad winners, international competitions, elite research (ISEF Grand Prize, RSI, etc.)
-    - **Major Relevance**: Use "SEMANTIC INFERENCE" to determine relevance.
-      * If marked as "**USER NOTE**: ... RELATED":
-        1. **DEFAULT TRUST**: Assume there is a connection you might not see immediately (e.g., soft skills, leadership application).
-        2. **EXCEPTION**: ONLY overrule this if the activity is **OBJECTIVELY and COMPLETELY** unrelated causing a logical contradiction (e.g. 'Walking my dog' for 'Nuclear Engineering').
-        3. If there is even a *slight* arguable connection (e.g., 'Volunteering' -> 'CS' via 'Service/Community Impact' or 'Teaching'), **TRUST THE USER**.
-      * Look for TRANSFERABLE SKILLS or ALLIED FIELDS (e.g., Math Club -> Physics Major = RELATED; Debate -> Political Science/Law = RELATED).
-      * DIRECT KEYWORD MATCH IS NOT REQUIRED.
-      * If activity is semantically related to ${targetMajor}, boost score by 0.5-1 point MAXIMUM.
-      * DO NOT give 7+ just because it's major-related. A basic CS club for CS major is still 2-3/10.
-      * Only exceptional, high-impact major-related activities deserve 6+/10.
-    - **Major Irrelevance**: If activity is completely unrelated (no transferable skills or semantic link) to ${targetMajor}, reduce score by 0.5 point.
-    - **Cliché Activities**: Standard club memberships (NHS, Key Club, etc.) without leadership → Reduce score.
-    - **Tech/Apps**: 10k+ users = Gold II (6/10), 100k+ = Diamond I (7/10), NOT Platinum
-    - **Competitions**: State = Silver II (4/10), National = Gold/Diamond (6-8/10), International = Platinum (9-10/10)
-    - **Research**: Published in undergraduate journal = Gold II (6/10), Peer-reviewed Q1 = Diamond (7-8/10)
+    - **Major Relevance (SEMANTIC INFERENCE)**:
+      * **Do NOT look for exact keyword matches.**
+      * **Think like an Admissions Officer**: Ask "Does this activity demonstrate skills or interest relevant to ${targetMajor}?"
+      * **Transferable Skills Logic**:
+        - Math/Logic activities (Chess, Math Club, Coding) -> RELEVANT for CS, Engineering, Physics, Economics.
+        - Communication activities (Debate, MUN, Writing) -> RELEVANT for Law, PolSci, Business, English, History.
+        - Biology/Chem activities -> RELEVANT for Pre-Med, Nursing, Health.
+        - Art/Design -> RELEVANT for Architecture, UI/UX, Marketing.
+      * If marked as "**USER NOTE**: ... RELATED" -> TRUST THE USER unless objectively impossible.
+      * If related (Direct or Transferable), boost score by 0.5-1 point (make it better, lower number).
+    - **Tech/Apps**: 10k+ users = Gold II (6/10), 100k+ = Diamond I (4/10).
+    - **Research**: Published in undergraduate journal = Gold II (6/10), Peer-reviewed Q1 = Diamond (3-4/10).
     
     **SCORING REALITY CHECK**:
-    - Most activities should be 2-6/10 range
-    - 7-8/10 = National-level achievement (USAMO qualifier, ISEF finalist, etc.)
-    - 9-10/10 = International/Olympic level ONLY
+    - Most activities should be 5-9/10 range
+    - 3-4/10 = National-level achievement (USAMO qualifier, ISEF finalist, etc.)
+    - 1-2/10 = International/Olympic level ONLY
 
     **CRITICAL INSTRUCTIONS**:
     1. Match activity to rank based on rubric and adjustments above. Be FAIR but REALISTIC for ${topSchools} standards.
@@ -370,13 +393,27 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
        - Suggest SPECIFIC next steps related to their major and current position
        - Example: "For ${majorMatch} at ${topSchools.split(',')[0]}, demonstrate..."
 
+    **FEEDBACK RULES (CRITICAL):**
+    - **TIER 9-10 (Platinum/Elite) IMMUNITY**:
+      * IF score is 9 or 10, \`brutal_feedback\` MUST BE 100% POSITIVE.
+      * DO NOT critique. DO NOT say "Try to do more." They are already at the top.
+      * Focus identifying *why* it is elite (e.g. "This is a world-class achievement.").
+      * \`level_up_action\` should be: "Maintain this excellence" or "Leverage this for Top 10 college essays".
+    - **TIER 1-8**: Be constructive but direct.
+    
+    **MAJOR RELEVANCE LOGIC**:
+    - **Relevance = Score Boost**:
+      * If an activity is logically related to ${targetMajor}, you **MUST** boost the score (unless already 10).
+      * **Reasoning Requirement**: In \`rank_description\`, you MUST explicitly state the connection if one exists (e.g., "Relevant to ${targetMajor} due to transferable [Skill Name] skills").
+      * **Benefit of the Doubt**: If the user says it's related, or if there's a loose connection, COUNT IT.
+
     **Example**: "Generic club membership unrelated to major" → Lower score
     Output JSON: {
-      "score": Integer (1-10, exact mapping),
+      "score": Integer (1-10, strict calibration),
       "rank_name": "String (e.g., Silver I)",
-      "rank_description": "One sentence assessment - NO listing of other activities",
-      "brutal_feedback": "Harsh critique addressing 'you'",
-      "level_up_action": "Specific, RELATED next step to reach next rank"
+      "rank_description": "Assessment. IF RELATED: You must mention 'Relevant to Major because...'",
+      "brutal_feedback": "Critique. IF TIER 1-2: NO CRITIQUE, only praise.",
+      "level_up_action": "Specific advice. IF TIER 1-2: focus on essays/portfolios."
     }`;
   } else {
     // MINIMAL TEXT PROMPT (For Native Regex/Keyword Analyzer)
@@ -390,11 +427,11 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
     const result = await callLocalAI(prompt, true);
     if (!result) {
       return {
-        score: 3,
+        score: 8, // Silver I (Weak)
         rank_name: "Silver I",
         rank_description: "Basic multi-club participation without significant leadership impact",
         brutal_feedback: "Your activity shows participation but lacks any competitive achievements or measurable impact.",
-        level_up_action: "To reach Silver II (4/10), win a state-level competition in your field or lead a regional initiative with documented results."
+        level_up_action: "To reach Silver II (Tier 7), win a state-level competition in your field or lead a regional initiative with documented results."
       };
     }
 
@@ -402,11 +439,11 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
   } catch (error) {
     console.log('Error in analyzeActivityImpact (using fallback):', error);
     return {
-      score: 3,
+      score: 8, // Silver I (Weak)
       rank_name: "Silver I",
       rank_description: "Basic multi-club participation without significant leadership impact",
       brutal_feedback: "Your activity shows participation but lacks any competitive achievements or measurable impact.",
-      level_up_action: "To reach Silver II (4/10), win a state-level competition in your field or lead a regional initiative with documented results."
+      level_up_action: "To reach Silver II (Tier 7), win a state-level competition in your field or lead a regional initiative with documented results."
     };
   }
 };
@@ -457,15 +494,17 @@ export const analyzeCollegeChances = async (
   const rawScore = (apCount * 1) + (ibCount * 1) + (honorsCount * 0.5);
   const rigorScore = Math.min(10, Math.ceil(rawScore));
 
-  // Count high-tier activities (T1, T2, T3)
-  const tier1Activities = activities.filter(a => a.tier === 1).length;
-  const tier2Activities = activities.filter(a => a.tier === 2).length;
-  const tier3Activities = activities.filter(a => a.tier === 3).length;
-  const topTierCount = tier1Activities + tier2Activities + tier3Activities;
-  const hasStrongECs = topTierCount >= 2; // 2+ activities in top 3 tiers = strong
+  // Count high-tier activities (Tier 1-2 = Platinum/Best)
+  // Scale: 1=Platinum II (Best), 10=Bronze I (Worst)
+  const platinumActivities = activities.filter(a => (a.tier || 10) <= 2).length;
+  const diamondActivities = activities.filter(a => (a.tier || 10) >= 3 && (a.tier || 10) <= 4).length;
+  const goldActivities = activities.filter(a => (a.tier || 10) >= 5 && (a.tier || 10) <= 6).length;
 
-  // Check if ALL extracurriculars are tier 6 or worse (very weak ECs)
-  const hasOnlyLowTierECs = activities.length > 0 && activities.every(a => !a.tier || a.tier >= 6);
+  const hasPlatinumSpike = platinumActivities >= 1; // Even ONE Platinum activity is a massive spike
+  const hasStrongECs = diamondActivities >= 2 || platinumActivities >= 1;
+
+  // Check if ALL extracurriculars are tier 7 or worse (Bronze/Silver = weak)
+  const hasOnlyLowTierECs = activities.length > 0 && activities.every(a => (a.tier || 10) >= 7);
 
   // Determine if this is a T20 school (very competitive and prestigious)
   const isT20School = acceptanceRateNum < 10;
@@ -507,113 +546,110 @@ export const analyzeCollegeChances = async (
   }
 
   // --- HARSH COLLEGE LIST (Strictly enforce rigorous standards for these) ---
+  let evaluationTone = "";
+  let ecWeight = "";
+
   const EXTREME_HARSH_COLLEGES = [
     "California Institute of Technology", "Caltech", "Harvard University", "Harvard", "Stanford University", "Stanford",
-    "Columbia University", "Columbia", "Massachusetts Institute of Technology", "MIT", "Princeton University", "Princeton",
-    "Yale University", "Yale", "Minerva University", "Minerva", "Brown University", "Brown", "University of Chicago", "UChicago",
-    "Duke University", "Duke", "Johns Hopkins University", "JHU", "Northwestern University", "Northwestern",
-    "University of Pennsylvania", "UPenn", "Penn", "Dartmouth College", "Dartmouth", "Vanderbilt University", "Vanderbilt",
-    "Rice University", "Rice", "Cornell University", "Cornell", "Pomona College", "Pomona", "Swarthmore College", "Swarthmore",
-    "Williams College", "Williams", "Amherst College", "Amherst", "Bowdoin College", "Bowdoin",
-    "Claremont McKenna College", "CMC", "Harvey Mudd College", "Harvey Mudd", "Georgetown University", "Georgetown",
-    "Carnegie Mellon University", "CMU", "Washington University in St. Louis", "WashU", "Tufts University", "Tufts",
-    "University of Notre Dame", "Notre Dame", "Emory University", "Emory", "University of California, Los Angeles", "UCLA",
-    "University of California, Berkeley", "UC Berkeley", "Cal", "University of Southern California", "USC",
-    "New York University", "NYU", "Northeastern University", "Northeastern", "Boston College", "BC",
-    "University of Michigan", "UMich", "Ann Arbor", "University of Virginia", "UVA",
-    "Georgia Institute of Technology", "Georgia Tech", "GT", "Cooper Union", "Franklin W. Olin College of Engineering", "Olin",
-    "Barnard College", "Barnard", "Wellesley College", "Wellesley", "United States Naval Academy", "USNA", "Navy",
-    "United States Military Academy", "West Point", "Army", "United States Air Force Academy", "USAFA", "Air Force",
-    "Colby College", "Colby", "Bates College", "Bates", "Davidson College", "Davidson"
+    "Massachusetts Institute of Technology", "MIT", "Princeton University", "Princeton", "Yale University", "Yale",
+    "Columbia University", "Columbia", "University of Pennsylvania", "UPenn", "Wharton", "Brown University", "Brown",
+    "Dartmouth College", "Dartmouth", "Cornell University", "Cornell", "University of Chicago", "UChicago",
+    "Duke University", "Duke", "Northwestern University", "Northwestern", "Johns Hopkins University", "JHU",
+    "Vanderbilt University", "Vanderbilt", "Rice University", "Rice", "Washington University in St. Louis", "WashU",
+    "Carnegie Mellon University", "CMU", "Georgetown University", "Georgetown", "University of California, Berkeley", "UC Berkeley",
+    "University of California, Los Angeles", "UCLA", "University of Michigan", "UMich", "University of Virginia", "UVA",
+    "University of Southern California", "USC", "New York University", "NYU", "Tufts University", "Tufts",
+    "University of North Carolina at Chapel Hill", "UNC Chapel Hill", "Georgia Institute of Technology", "Georgia Tech"
   ];
 
-  const isHarshCollege = EXTREME_HARSH_COLLEGES.some(c =>
-    collegeName.toLowerCase() === c.toLowerCase() ||
-    collegeName.toLowerCase().includes(c.toLowerCase())
-  );
+  const isHarshCollege = EXTREME_HARSH_COLLEGES.some(c => collegeName.toLowerCase().includes(c.toLowerCase()));
 
-  let evaluationTone: string;
-  let ecWeight: string;
-
-  if (isHarshCollege) {
-    evaluationTone = `
-    You are a BRUTALLY RUTHLESS Senior Admissions Dean at an Ultra-Selective (Sub-5%) institution. Your office is a graveyard of perfect applications.
-    
-    CRITERIA FOR 2025:
-    1. ACADEMIC HYGIENE: A 4.0 GPA and 1580+ SAT are not "strengths"; they are the bare minimum ticket to have your file opened. If a student has an SAT under a 1450, they are functionally invisible unless they are a world-class athlete or a generational legacy.
-    2. THE "POINTY" ARCHETYPE: You actively despise "well-rounded" students. "President of 5 clubs" signals a lack of focus. You want "pointy" students who have achieved mastery in a singular, narrow domain. You are looking for the next Nobel laureate, Olympic medalist, or tech unicorn founder—not a high achiever who follows a checklist.
-    3. INSTITUTIONAL PRIORITY & YIELD: You are building a diverse "class ecosystem." If the school needs a rare instrumentalist, a specific type of researcher, or a student from an underrepresented rural zip code, that student gets in over the suburban valedictorian.
-    4. AI SCRUTINY: You are hyper-aware of AI-generated content. If an essay feels too balanced, uses "ChatGPT-isms" (e.g., 'tapestry', 'delve', 'testament'), or lacks raw, gritty, specific human vulnerability, it is an automatic REJECT. Authenticity is the only currency left.
-    
-    PROBABILITY LOGIC:
-    - 0-10%: The "Standard Excellence" trap. 4.0/1600 but generic ECs (Tier 3-4). This is the "Dullest" part of the pile.
-    - 11-35%: Competitive. Strong stats + a verified "Major Spike" (e.g., USACO camp, USAPHO qualification, USAMO, USABO, USAJMO, any olympiad level qualification, or top 100 in any subject or section in the country relating to the major, RSI, published first-author research in a Q1 journal).
-    - 36-70%: Elite/Hooked. Multiple Tier 1 achievements plus a major institutional hook (D1 recruit, major donor, specialized talent needed for the class).
-  `;
-
-    ecWeight = `
-    RATING SYSTEM:
-    - TIER 1 (The "God Tier"): International Olympiad Gold Medalist (IMO, IOI, IPhO), Research published in a peer-reviewed professional journal, $100k+ Revenue Startup, or a nationally recognized social movement. These are the only "Safe" bets.
-    - TIER 2 (National Elite): AIME top scorer, National Merit Finalist, USABO Semifinalist, founder of a high-impact non-profit with verified $10k+ fundraising, or a top-tier summer program (TASP, MITES, SSP).
-    - TIER 3 (Regional Leader): State-level awards, Student Body President of a massive school, Varsity Captain of a state-championship team. At this level, this is considered "Average."
-    - TIER 4/5 (The "Filler"): General club membership, local volunteering, honor roll. If an applicant has 10 of these but zero Tier 1-2, they are viewed as "Resume Stuffers" and rejected for lack of impact.
-    
-    MANDATORY "EVIDENCE-OF-WORK": In 2025, titles like 'President' or 'Founder' are meaningless without artifacts. You demand proof: GitHub links with 200+ commits, portfolio websites, verified impact reports, or published abstracts. If it's not verifiable, it's considered fabricated.
-  `;
-
-  } else if (acceptanceRateNum < 25) {
-    evaluationTone = `
-    You are evaluating for a Top 30 Highly Selective university. You are the "Guardians of the Yield." Your primary fear is being used as a "Safety" for a student who is actually destined for an Ivy League school.
-    
-    CRITERIA:
-    - YIELD PROTECTION & INTEREST: You are looking for "High Probability Yield." Did the student visit? Did they open every single email? Did they follow the school on social media? If a student has Ivy-level stats but zero "Demonstrated Interest," you will Waitlist them immediately to protect your stats.
-    - THE "FIT" FACTOR: Your school has a specific culture (e.g., "The Work Hard/Play Hard" vibe of UMich or the "Quirky" vibe of UChicago). If the student’s personality doesn't bleed through the essay, they are out.
-    - MAJOR-SPECIFIC RIGOR: If they applied for Computer Science, Engineering, or Nursing, your standards for Math/Science are 5x higher than for other majors. A 'B' in AP Calculus is a death sentence for a CS applicant here.
-    - GEOGRAPHIC ASSET: You are looking to diversify your map. A student from the Midwest or a rural area has a massive advantage over a student from a hyper-competitive tech hub like the Bay Area or NYC.
-  `;
-
-    ecWeight = `
-    - TIER 2-3 MANDATORY: You expect to see at least two "Deep Commitments"—activities held for 3+ years with measurable progression in responsibility.
-    - IMPACT-OVER-INVOLVEMENT: You don't care that they joined a club; you care about how the club *changed* because they were in it. Did they increase membership by 50%? Did they raise $5,000? 
-    - ALIGNMENT: The "Story" must make sense. If a Pre-Med student has zero clinical volunteering but spent 400 hours doing Graphic Design, you find the application "Confused." You want to see a clear path leading to the chosen major.
-    - LEADERSHIP DEPTH: You prefer a student who was a "Manager" at a local job for 2 years over a student who did three different week-long "leadership seminars."
-  `;
-
-  } else if (acceptanceRateNum <= 50) {
-    evaluationTone = `
-    You are a Selective AO at a strong regional or flagship university. You focus on "The Growth Arc" and "Campus Contribution." You are looking for the "Engine" of the student body—the kids who will show up and actually run the campus organizations.
-    
-    CRITERIA:
-    - THE UPWARD TREND: You are forgiving of a bad 9th-grade year if the 10th-12th grade shows a consistent, aggressive climb in rigor and grades.
-    - MERIT SCHOLARSHIP PIPELINE: You use high SAT/ACT scores as a primary "Hook" to pull in top-tier talent from other states. A 1500+ student is your "Golden Goose" for merit aid.
-    - COMMUNITY CONTRIBUTION: You want to know: "Will this kid be an active member of our dorms and clubs, or will they just sit in their room?"
-    - RESILIENCE: You look for students who have faced some form of adversity—be it financial, personal, or academic—and pushed through it.
-  `;
-
-    ecWeight = `
-    - RELIABILITY & GRIT: You value a 3-year consistent part-time job (Retail, Service, Tutoring) more than a 2-week expensive "Pay-to-Play" internship. It shows the student can handle a schedule.
-    - TIER 3-4 VALUE: Being a "Captain," "Editor," or "Lead" is a very strong signal of potential here. You want to see that peers trust this student to lead.
-    - BREADTH: Unlike elite schools, you actually like "Well-Rounded" kids. A student who does Sports, Theater, and Coding is an asset to a campus that needs multi-talented participants.
-    - VOLUNTEERISM: You look for genuine community heart. 100+ hours of consistent service is a major "green flag."
-  `;
-
-  } else {
-    evaluationTone = `
-    You are a FAIR and ENCOURAGING Admissions Officer at an accessible university (>50% acceptance). Your primary mission is "Success Prediction"—you are trying to determine if this student has the foundational skills to graduate in 4 years.
-    
-    CRITERIA:
-    - ACADEMIC READINESS: If their GPA is above your 75th percentile and they have passed their core Math/English requirements, they are effectively a "Lock."
-    - RED FLAG CHECK: You are looking for reasons NOT to admit—major disciplinary issues, a total 12th-grade collapse (Senioritis), or missing graduation requirements.
-    - PERSONAL CHARACTER: You value "Grit" above all else. Did they work while in school? Did they take care of younger siblings? These are the students who tend to succeed at your institution.
-    - ESSAY WEIGHT: If the stats are borderline, the essay becomes the 100% deciding factor. You want to see effort and a desire to be at your school specifically.
-  `;
-
-    ecWeight = `
-    - GENERAL INVOLVEMENT: Any Tier 3-5 activity is a positive "Checkmark." You just want to see that the student is a social, functional human being who participated in life outside the classroom.
-    - LIFE RESPONSIBILITIES: You give massive credit for "Family Responsibilities." If a student couldn't do clubs because they had to work or babysit, you count that as a Tier 3-level commitment.
-    - RECOGNITION: School-level awards (Student of the Month, Honor Roll) carry weight here as indicators of a positive attitude and reliability.
-  `;
+  // --- AUTOMATIC SAFETY OVERRIDE FOR WORLD-CLASS TALENT ---
+  // User Rule: "A national or international win of any competition is extreme, and makes the applicant always a safety at any college."
+  let isAutoSafety = false;
+  if (platinumActivities > 0) {
+    isAutoSafety = true;
   }
+
+  // ... (rest of logic)
+
+  if (isAutoSafety) {
+    evaluationTone = `
+     You are evaluating a WORLD-CLASS APPLICANT (National/International Winner).
+     
+     CRITICAL INSTRUCTION:
+     - This student has a Tier 1 (Platinum) achievement.
+     - They are AUTOMATICALLY A SAFETY for ${collegeName}.
+     - Do NOT use standard acceptance rates.
+     - Your probability MUST be 90-99%.
+     - Your reasoning should focus on how their specific elite achievement makes them an auto-admit.
+     `;
+    ecWeight = `
+     - TIER 1 (Platinum): PRESENT. Student is a National/International Winner.
+     - STATUS: AUTO-ADMIT / SAFETY.
+     `;
+  } else if (isHarshCollege) {
+    evaluationTone = `
+     You are evaluating for ${collegeName}, which is a Highly Selective / Elite institution.
+     
+     Evaluation Standards:
+     - 4.0 GPA / 1500+ SAT is COMMON. It does not guarantee admission.
+     - "President of a Club" is AVERAGE. Everyone is a president.
+     - You need to look for "Spikes" (National achievements, unique hook, major alignment).
+     
+     Probability Calibration:
+     - If no major spike (Tier 3+ i.e. 1, 2, or 3), cap probability at 20-30% (Reach).
+     - If stats are perfect but ECs are generic -> Waitlist/Reject zone.
+     `;
+    ecWeight = `
+     - STANDARD: High (Tier 1-4 preferred).
+     - Tier 7-10 (School clubs) are "filler" activities.
+     `;
+  }
+
+  // Function to simulate Multi-Agent Cross-Check
+  const verifyFacts = async (originalPrompt: string, originalResponse: any) => {
+    const factCheckPrompt = `
+      Role: Senior Fact Checker Agent.
+      Task: Verify and Double-Check the Admissions Officer's analysis against the student's data. Focus on Major Relevance and Tier Accuracy.
+      
+      Student Input:
+      ${activitySummary}
+      
+      Officer Output:
+      ${JSON.stringify(originalResponse)}
+      
+      User Major: ${profile.targetMajor}
+      
+      Verification Rules:
+      1. **Check Tier 1s**: The student has ${platinumActivities} Platinum (Tier 1-2) activities. 
+         - If the Officer says "No strong ECs" or "Lack of spike", and there are Tier 1-2s, MARK AS FALSE.
+      2. **Check Probability**: If student has Platinum activities (Tier 1-2), Probability MUST be > 90% (Safety).
+         - If Officer gave < 90% and called it a Reach, MARK AS FALSE.
+      3. **MAJOR RELEVANCE DOUBLE-CHECK (CRITICAL)**:
+         - Review the Student Input activities again.
+         - Look for ANY "Hidden" or "Transferable" connection to ${profile.targetMajor}. (e.g. Math related to CS, Debate related to PolSci).
+         - If the Model MISSED a connection (said it's unrelated), CORRECt it.
+         - If the User flagged it as [USER-FLAGGED: MAJOR RELATED], you MUST accept it as relevant.
+      
+      Action:
+      - If FALSE or MISSED RELEVANCE, correct the output JSON to reflect the truth (Safety, 90%+, acknowledge Tier 1, acknowledge Major Relevance).
+      - If TRUE and ACCURATE, return the original JSON.
+      
+      Output JSON (Corrected or Original).
+      `;
+
+    try {
+      console.log("[Multi-Agent] Running Crossover Fact Check...");
+      const verified = await callLocalAI(factCheckPrompt, true);
+      if (verified) return verified;
+      return originalResponse;
+    } catch (e) {
+      console.error("[Multi-Agent] Fact check failed, using original.", e);
+      return originalResponse;
+    }
+  };
+
 
   const collegeDifficulty = collegeInfo?.difficulty || 'Moderate';
 
@@ -624,7 +660,9 @@ export const analyzeCollegeChances = async (
     profile.targetMajor.toLowerCase().includes(major.toLowerCase())
   );
 
-  const prompt = `You are an Admissions Evaluator for ${collegeName}. Use the "Base Gravity" model. BE BRUTALLY HARSH.
+  const prompt = `You are an Admissions Evaluator for ${collegeName}. ${evaluationTone}
+  
+  Use the "Base Gravity" model. BE BRUTALLY HARSH.
 
 **BASE GRAVITY CALCULATION:**
 Start: ${acceptanceRateNum}% acceptance rate${isKillerMajor ? ` → ${(acceptanceRateNum * (isT20School ? 0.5 : 0.7)).toFixed(1)}% for competitive major "${profile.targetMajor}"` : ''}
@@ -645,11 +683,14 @@ BE MERCILESS. "Good" is NOT enough. "Great" is NOT enough.
   *   IF STATS GOOD/PERFECT but Weak ECs (No Tier 1): Max 15-25% (Reach) -> NOT Ultra Reach.
   ${hasOnlyLowTierECs ? `*   **CRITICAL: TIER 6+ ONLY PENALTY**: Student has ONLY Tier 6 or lower ECs (extremely weak).\n      → IF GPA < 3.7: AUTOMATIC Ultra Reach (<10%).\n      → IF GPA >= 3.7: AUTOMATIC Reach (11-20% max).\n      → These students lack ANY meaningful achievements. Be EXTREMELY harsh.` : ''}
 - "Well-Rounded": This is a weakness. We want a SPIKE (World-class talent).
-- 1 Tier 1 Activity: Competitive. 20-30% range (Reach).
-- "Well-Rounded": This is a weakness. We want a SPIKE (World-class talent).
-- 1 Tier 1 Activity: Still barely competitive. Max 15-20% (Reach).
-- Multiple Tier 1s: This is the ONLY path to "Target" (35%+).
-- Default Verdict: Assume REJECTION (<10%) unless proven otherwise by exceptional, rare achievements.
+- **SPIKE CHECK (User Rule Enforcement)**:
+  *   **IF student has 1+ Platinum (Tier 1-2) Activity**:
+      - They are "world-class". BE LOOSE.
+      - Boost Probability to **Target (40-60%)** even for T20s, unless GPA is terrible.
+      - Do NOT reject a Platinum student easily.
+  *   **IF student has 2+ Diamond (Tier 3-4) Activities**:
+      - They are "Competitive". Reach (20-35%).
+- Default Verdict (No Spike): Assume REJECTION (<10%).
 
 If they are "President of Math Club" and "Captain of Tennis" with no major awards -> ULTRA REACH (<5%).` : acceptanceRateNum < 30 ? `**HIGHLY SELECTIVE MODE (10-30%): STATS ARE EVERYTHING**
 Tier 1-2 activities DON'T MATTER. GPA and SAT are PRIMARY.
@@ -707,8 +748,9 @@ Focus feedback on GPA, SAT, course rigor, and general involvement level.`}
 GPA: ${profile.gpa} | SAT: ${profile.satScore} | Major: ${profile.targetMajor}
 Rigor: ${apCount} APs, ${ibCount} IBs, ${honorsCount} Honors
 
-**ACTIVITIES${acceptanceRateNum > 50 ? ' (general involvement):' : ' (Tier 1-2 = National/Elite, Tier 3 = Regional):'}**
-${acceptanceRateNum > 50 ? '' : `Tier 1-2: ${tier1Activities + tier2Activities} (${tier1Activities + tier2Activities >= 2 ? '✅ SPIKE' : '⚠️ NO SPIKE'})\n`}${activitySummary}
+**ACTIVITIES${acceptanceRateNum > 50 ? ' (general involvement):' : ' (Tier 1-2 = National/Elite, Tier 3-4 = Regional):'}**
+${ecWeight}
+${acceptanceRateNum > 50 ? '' : `Tier 1-2 (Platinum): ${platinumActivities} (${platinumActivities >= 1 ? '✅ HUGE SPIKE' : '⚠️ NO SPIKE'})\n`}${activitySummary}
 
 **PROJECTS:**
 ${projectSummary}
@@ -761,7 +803,14 @@ Use instead: "strong involvement", "leadership experience", "meaningful activiti
 
 **Major: ${profile.targetMajor}** - Adjust for major competitiveness at ${collegeName}`;
   try {
-    const result = await callLocalAI(prompt, true);
+    let result = await callLocalAI(prompt, true);
+
+    // --- MULTI-AGENT CROSSOVER FACT CHECK ---
+    const supportsFoundation = await hasFoundationModelsSupport();
+    if (result && supportsFoundation) {
+      // Run the verifier agent
+      result = await verifyFacts(prompt, result);
+    }
 
     if (!result) {
       return {
@@ -1093,12 +1142,33 @@ export const generateResume = async (
     return result;
   } catch (error) {
     console.log('Error in generateResume (using fallback):', error);
+
+    // Fallback: Generate a basic resume structure from raw data
+    const fallbackExperience = activities.map(a => ({
+      role: a.position,
+      organization: a.organization,
+      dates: a.startDate && a.endDate ? `${a.startDate} - ${a.endDate}` : "Dates not specified",
+      bullets: [a.description || "Activity description"]
+    }));
+
+    const fallbackProjects = projects.map(p => ({
+      title: p.title,
+      skills: p.skills || "",
+      dates: p.startDate && p.endDate ? `${p.startDate} - ${p.endDate}` : "Dates not specified",
+      bullets: [p.description || "Project description"]
+    }));
+
     return {
-      summary: "Student summary...",
-      education: { school: "HS", gradYear: "2026", gpa: "4.0", coursework: "AP" },
-      experience: [],
-      projects: [],
-      skills: [],
+      summary: `Motivated student with a strong interest in ${profile.targetMajor}.`,
+      education: {
+        school: "High School",
+        gradYear: profile.graduationYear.toString(),
+        gpa: profile.gpa || "N/A",
+        coursework: `${profile.apCount || 0} APs, ${profile.ibCount || 0} IBs`
+      },
+      experience: fallbackExperience,
+      projects: fallbackProjects,
+      skills: ["Leadership", "Communication", "Problem Solving"],
       awards: []
     };
   }
@@ -1157,11 +1227,18 @@ export const generateBragSheet = async (
     return result;
   } catch (error) {
     console.log('Error in generateBragSheet (using fallback):', error);
+
+    // Fallback: Populate with top activities
+    const fallbackExperiences = activities.slice(0, 4).map(a => ({
+      title: `${a.position} at ${a.organization}`,
+      narrative: a.description || "Demonstrated commitment and leadership in this role."
+    }));
+
     return {
-      introaryStatement: "Strong student with diverse interests.",
-      academicHighlight: "Maintains high academic performance.",
-      keyExperiences: [],
-      personalQualities: []
+      introaryStatement: `${profile.name} is a dedicated student interested in ${profile.targetMajor}.`,
+      academicHighlight: `Has maintained a ${profile.gpa || 'strong'} GPA with rigorous coursework including ${profile.apCount || 0} AP classes.`,
+      keyExperiences: fallbackExperiences,
+      personalQualities: ["Dedicated", "Passionate", "Hardworking"]
     };
   }
 };
@@ -1256,12 +1333,13 @@ export const analyzeStudentArchetypes = async (
 
   try {
     const result = await callLocalAI(prompt, true);
-    if (!result) {
-      return {
-        analysis_summary: "Strong potential. Connect AI for deep analysis.",
-        narratives: []
-      };
+
+    // SAFETY: Validate response structure
+    if (!result || !result.narratives || !Array.isArray(result.narratives)) {
+      console.warn("Invalid Archetype Result from AI:", result);
+      throw new Error("Invalid response format: Missing narratives array");
     }
+
     return result;
   } catch (error) {
     console.log('Error in analyzeStudentArchetypes (using fallback):', error);
