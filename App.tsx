@@ -482,7 +482,7 @@ export default function App() {
 
   // Foundation Models capability
   // Replaced by foundationSupported at the top
-  // const [hasAdvancedAI, setHasAdvancedAI] = useState(true);
+
 
   // ScrollView ref for auto-scroll
   const scrollViewRef = useRef<ScrollView>(null);
@@ -805,7 +805,7 @@ export default function App() {
   };
 
   const handleGenerateResume = async () => {
-    if (!hasAdvancedAI) {
+    if (!foundationSupported) {
       Alert.alert(
         'Feature Unavailable',
         'Resume generation requires iPhone 15 Pro or newer with Apple Intelligence support, later updates may support this feature.',
@@ -828,7 +828,7 @@ export default function App() {
   };
 
   const handleGenerateBragSheet = async () => {
-    if (!hasAdvancedAI) {
+    if (!foundationSupported) {
       Alert.alert(
         'Feature Unavailable',
         'Brag Sheet generation requires iPhone 15 Pro or newer with Apple Intelligence support, later updates may support this feature',

@@ -96,10 +96,18 @@ const LocalLLM = NativeModules.LocalLLMBridge;
 
 // Check if device supports Foundation Models (iPhone 15 Pro+)
 export const hasFoundationModelsSupport = async (): Promise<boolean> => {
+  console.log("[Foundation Models] Checking support...");
+  if (!LocalLLM) {
+    console.warn("[Foundation Models] Native Module LocalLLMBridge is null.");
+    return false;
+  }
   try {
-    if (LocalLLM && LocalLLM.hasFoundationModelsSupport) {
-      return await LocalLLM.hasFoundationModelsSupport();
+    if (LocalLLM.hasFoundationModelsSupport) {
+      const supported = await LocalLLM.hasFoundationModelsSupport();
+      console.log(`[Foundation Models] Support status: ${supported}`);
+      return supported;
     }
+    console.warn("[Foundation Models] hasFoundationModelsSupport method missing on bridge.");
     return false;
   } catch (error) {
     console.error('[Foundation Models] Capability check failed:', error);
@@ -114,13 +122,13 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
       // 1. Send the prompt to the on-device Foundation Model
       const response = await LocalLLM.generateResponse(prompt);
 
-      console.log('[LocalAI] Raw response:', response);
+      console.log('[LocalAI] Raw response length:', response ? response.length : 0);
 
       if (!response) {
-        throw new Error("Model returned empty response");
+        console.warn("[LocalAI] Model returned empty/null response.");
+        return null;
       }
 
-      // 2. Handle JSON parsing robustly (Models often wrap JSON in markdown)
       // 2. Handle JSON parsing robustly (Models often wrap JSON in markdown)
       if (isJson) {
         try {
@@ -140,18 +148,21 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
 
           // 3. Trailing Comma Fix (Common LLM Error)
           cleanText = cleanText.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+          // 4. Double Comma / Leading Comma Fix
+          cleanText = cleanText.replace(/,\s*,/g, ",").replace(/{\s*,/g, "{").replace(/\[\s*,/g, "[");
 
-          // 4. Handle unescaped newlines within strings (basic attempt)
+          // 5. Handle unescaped newlines within strings (basic attempt)
           // This is risky but often needed for LLM outputs that contain multi-line strings without \n
           // cleanText = cleanText.replace(/\n/g, "\\n"); 
 
-          console.log('[LocalAI] Cleaned JSON text:', cleanText);
+          // console.log('[LocalAI] Cleaned JSON text:', cleanText); // UN-MUTED FOR DEBUGGING
           const parsed = JSON.parse(cleanText);
-          console.log('[LocalAI] Parsed JSON:', parsed);
+          // console.log('[LocalAI] Parsed JSON:', parsed); // Muted verbose log
+          console.log('[LocalAI] JSON Parse Success!');
           return parsed;
         } catch (parseError) {
-          console.log("JSON Parse Error caught. Retrying with loose recovery...");
-          console.error('[LocalAI] Parse error:', parseError);
+          console.log("JSON Parse Error caught, retrying...");
+          // console.log('[LocalAI] Parse warning (handled):', parseError); // UN-MUTED FOR DEBUGGING
 
           // Attempt basic recovery
           try {
@@ -167,8 +178,16 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
             // or if there were hidden characters.
 
             // One last ditch attempt: remove all control characters except allowed ones?
-            const sanitized = cleanText.replace(/[\u0000-\u0019]+/g, "");
-            return JSON.parse(sanitized);
+            // Specifically target the "Unexpected character: B" type errors by removing non-JSON characters from start
+            const firstOpen = cleanText.indexOf('{');
+            const lastClose = cleanText.lastIndexOf('}');
+            if (firstOpen !== -1 && lastClose !== -1) {
+              const jsonSubstring = cleanText.substring(firstOpen, lastClose + 1);
+              // Remove any non-printable characters that might have snuck in (except \n, \r, \t)
+              const sanitized = jsonSubstring.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, "");
+              return JSON.parse(sanitized);
+            }
+            return null;
           } catch (e) {
             console.log("Final JSON recovery failed.");
             return null; // Return null so the caller uses fallback
@@ -331,9 +350,8 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
     ${RANK_RUBRIC}
 
     **EXPLICIT SCORE MAPPING**:
-    - Platinum II = 1/10 (Best), Platinum I = 2/10
-    - Bronze I = 9/10, Bronze II = 10/10 (Basic)
-    - Silver I = 7/10, Silver II = 8/10 (Local leadership/competition)
+    - Bronze I = 1/10, Bronze II = 2/10 (Basic participation)
+    - Silver I = 3/10, Silver II = 4/10 (Local leadership/competition)
     - Gold I = 5/10, Gold II = 6/10 (State/Regional achievement)
     - Diamond I = 7/10, Diamond II = 8/10 (National achievement)
     - Platinum I = 9/10, Platinum II = 10/10 (International/Elite)
@@ -345,24 +363,47 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
     ${activity.isMajorRelated ? `**USER NOTE**: The applicant has explicitly marked this activity as RELATED to their major (${targetMajor}). Trust this assertion and evaluate accordingly.` : ''}
 
     **CALIBRATION RULES (NON-NEGOTIABLE):**
-    1. **NATIONAL WINNER = TIER 1 (Platinum II)**.
-       - "1st Place", "Winner", "Gold Medal", or "Champion" at any NATIONAL level competition (e.g., USAPhO, USNCO, National Science Olympiad, FBLA Nationals, DECA ICDC) is AUTOMATICALLY 1/10.
-       - Do NOT downgrade National Wins to Tier 2. They are Tier 1.
-    2. **NATIONAL FINALIST = TIER 3 (Diamond II)**.
-       - Top 20, Finalist, or National Qualifier is Tier 3.
-    3. **INTERNATIONAL MEDALIST = TIER 1**.
-    4. **STATE WINNER = TIER 5 (Gold II)**.
+    1. **NATIONAL WINNER = TIER 10 (Platinum II)**.
+       - "1st Place", "Winner", "Gold Medal", or "Champion" at any NATIONAL level competition (e.g., USAPhO, USNCO, National Science Olympiad, FBLA Nationals, DECA ICDC) is AUTOMATICALLY 10/10.
+       - Do NOT downgrade National Wins to Tier 9. They are Tier 10.
+    2. **NATIONAL FINALIST = TIER 8 (Diamond II)**.
+       - Top 20, Finalist, or National Qualifier is Tier 8.
+    3. **INTERNATIONAL MEDALIST = TIER 10**.
+    4. **STATE WINNER = TIER 6 (Gold II)**.
 
     **INFERENCE & PREDICTION LOGIC (APPLY TO ALL TIERS)**:
     - **Use the Rubric as training examples, NOT an exhaustive list.**
-    - **Tier 9-10 (Bronze)**: PATTERN = "Participant", "Member", "Volunteer". If the activity is casual participation or basic membership, infer Tier 9-10.
-    - **Tier 7-8 (Silver)**: PATTERN = "Local Leadership", "School Award", "Club Officer". If they lead at a school/city level or win local awards, infer Tier 7-8.
+    - **Tier 1-2 (Bronze)**: PATTERN = "Participant", "Member", "Volunteer". If the activity is casual participation or basic membership, infer Tier 1-2.
+    - **Tier 3-4 (Silver)**: PATTERN = "Local Leadership", "School Award", "Club Officer". If they lead at a school/city level or win local awards, infer Tier 3-4.
     - **Tier 5-6 (Gold)**: PATTERN = "Regional/State Recognition". If they placed/won at a State level competition or lead a large regional initiative, infer Tier 5-6.
-    - **Tier 3-4 (Diamond)**: PATTERN = "National Qualifier/Finalist". If they reached the National level (e.g. Qualified for Nationals, Finalist) or have significant research, infer Tier 3-4.
-    - **Tier 1-2 (Platinum)**: PATTERN = "National/International WINNER". If they are #1 in the Country (National Champion) or Top in the World, infer Tier 1.
+    - **Tier 7-8 (Diamond)**: PATTERN = "National Qualifier/Finalist". If they reached the National level (e.g. Qualified for Nationals, Finalist) or have significant research, infer Tier 7-8.
+    - **Tier 9-10 (Platinum)**: PATTERN = "National/International WINNER". If they are #1 in the Country (National Champion) or Top in the World, infer Tier 10.
     - **Instruction**: When you see an unlisted activity, match it to these PATTERNS.
-      * Example: "State Knitting Champion" matches "State Recognition" -> Tier 5.
-      * Example: "Founder of International Non-Profit (Featured in NYT)" matches "Elite/Societal" -> Tier 1.
+      * Example: "State Knitting Champion" matches "State Recognition" -> Tier 6.
+      * Example: "Founder of International Non-Profit (Featured in NYT)" matches "Elite/Societal" -> Tier 10.
+    
+    **INFERENCE LOGIC: SCOPE > TITLE (CRITICAL)**:
+    - **Do NOT be fooled by titles.** "Founder", "President", "Captain" are meaningless without **SCOPE**.
+    - **School Level (Impact limited to 1 school)**: 
+      - MAX TIER = 5 (Gold I).
+      - Standard = Tier 3-4 (Silver).
+      - *Reasoning*: Leading a club at one school is a standard activity.
+    - **Regional Level (Impacts multiple schools/city)**:
+      - TIER RANGE = 5-6 (Gold).
+      - *Requirement*: Must show external recognition or multi-school participation.
+    - **National Level (Impacts the country)**:
+      - TIER RANGE = 7-8 (Diamond).
+      - *Requirement*: National awards, 1000+ users, published research.
+    - **International Level (Global Impact)**:
+      - TIER RANGE = 9-10 (Platinum).
+
+    **RE-CALIBRATION INSTRUCTIONS**:
+    - If the activity is "President of [School Club]" -> Check Scope.
+      - If Scope = School -> **Tier 4 (Silver II)**.
+      - If Scope = National Chapter with Awards -> **Tier 6-7**.
+    - If the activity is "Varsity Captain" -> Check Scope.
+      - If Scope = School Team -> **Tier 4**.
+      - If Scope = State Champion Team -> **Tier 6**.
 
     **IMPORTANT SCORING ADJUSTMENTS**:
     - **Major Relevance (SEMANTIC INFERENCE)**:
@@ -374,14 +415,16 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
         - Biology/Chem activities -> RELEVANT for Pre-Med, Nursing, Health.
         - Art/Design -> RELEVANT for Architecture, UI/UX, Marketing.
       * If marked as "**USER NOTE**: ... RELATED" -> TRUST THE USER unless objectively impossible.
-      * If related (Direct or Transferable), boost score by 0.5-1 point (make it better, lower number).
-    - **Tech/Apps**: 10k+ users = Gold II (6/10), 100k+ = Diamond I (4/10).
-    - **Research**: Published in undergraduate journal = Gold II (6/10), Peer-reviewed Q1 = Diamond (3-4/10).
+      * If related (Direct or Transferable), boost score by 0.5-1 point (except for Tier 10 which is capped).
+      * **LIMITATION**: Major Relevance boosts the *Score* within the Tier, it does NOT jump Tiers.
+        - Ex: Math Club (Tier 4) + Math Major = Tier 4.5 (Strong Silver), NOT Tier 7 (Diamond).
+    - **Tech/Apps**: 10k+ users = Gold II (6/10), 100k+ = Diamond I (7/10).
+    - **Research**: Published in undergraduate journal = Gold II (6/10), Peer-reviewed Q1 = Diamond (7-8/10).
     
     **SCORING REALITY CHECK**:
-    - Most activities should be 5-9/10 range
-    - 3-4/10 = National-level achievement (USAMO qualifier, ISEF finalist, etc.)
-    - 1-2/10 = International/Olympic level ONLY
+    - Most activities should be 2-6/10 range
+    - 7-8/10 = National-level achievement (USAMO qualifier, ISEF finalist, etc.)
+    - 9-10/10 = International/Olympic level ONLY
 
     **CRITICAL INSTRUCTIONS**:
     1. Match activity to rank based on rubric and adjustments above. Be FAIR but REALISTIC for ${topSchools} standards.
@@ -393,13 +436,30 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
        - Suggest SPECIFIC next steps related to their major and current position
        - Example: "For ${majorMatch} at ${topSchools.split(',')[0]}, demonstrate..."
 
-    **FEEDBACK RULES (CRITICAL):**
+    **EXTENSIVE JUDGING PROTOCOL (DEEP SCRUTINY)**:
+    - **Vague Description Penalty**: If the description is "Managed club" or "Helped members" without numbers -> **CAP at Tier 3 (Silver I)**.
+    - **"President" Inflation Check**: If "President" is the ONLY achievement -> **FORCE Tier 4 (Silver II)**.
+    - **Member vs Leader**: "Member" = Tier 1-2. "Leader" = Tier 3-4. "Founder" = Tier 3-5 (unless news coverage).
+    - **Awards Verification**: If they claim "National Winner" but description doesn't name the award -> **DOWNGRADE to Tier 6 (Gold II)**. Doubt is negative.
+
+    **FEEDBACK RULES (CRITICAL)**:
+    - **SPECIFICITY REQUIRED**:
+      * You MUST quote or reference specific details from the user's input (e.g., "Your role managing ${activity.organization}..." or "The ${activity.position} title is strong but...").
+      * **Do NOT use generic advice** like "gain more leadership" or "increase impact". SAY HOW.
+      * Example: "Instead of just 'attending meetings', try organizing a regional hackathon for 5+ schools."
+    - **HYPER-SPECIFIC ACTIONS (MANDATORY)**:
+      * **Do NOT give category advice** (e.g., "Join a Hackathon" if they are already coding).
+      * **Ask: "What is the logical next step for THIS specific project?"**
+      * If they built an App -> "Launch on App Store / Get 100 users."
+      * If they run a Club -> "Organize a district-wide event for 3 schools."
+      * If they did Research -> "Submit to [Specific Journal Name] or state fair."
+      * **The advice MUST be about the activity described.**
     - **TIER 9-10 (Platinum/Elite) IMMUNITY**:
       * IF score is 9 or 10, \`brutal_feedback\` MUST BE 100% POSITIVE.
       * DO NOT critique. DO NOT say "Try to do more." They are already at the top.
       * Focus identifying *why* it is elite (e.g. "This is a world-class achievement.").
       * \`level_up_action\` should be: "Maintain this excellence" or "Leverage this for Top 10 college essays".
-    - **TIER 1-8**: Be constructive but direct.
+    - **TIER 1-8**: Be constructive but direct using the rules above.
     
     **MAJOR RELEVANCE LOGIC**:
     - **Relevance = Score Boost**:
@@ -412,8 +472,8 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
       "score": Integer (1-10, strict calibration),
       "rank_name": "String (e.g., Silver I)",
       "rank_description": "Assessment. IF RELATED: You must mention 'Relevant to Major because...'",
-      "brutal_feedback": "Critique. IF TIER 1-2: NO CRITIQUE, only praise.",
-      "level_up_action": "Specific advice. IF TIER 1-2: focus on essays/portfolios."
+      "brutal_feedback": "Critique. IF TIER 9-10: NO CRITIQUE, only praise.",
+      "level_up_action": "Specific advice. IF TIER 9-10: focus on essays/portfolios."
     }`;
   } else {
     // MINIMAL TEXT PROMPT (For Native Regex/Keyword Analyzer)
@@ -424,32 +484,138 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
   }
 
   try {
-    const result = await callLocalAI(prompt, true);
+    let result = await callLocalAI(prompt, true);
+
+    // FAILSAFE: If the Foundation Model failed (returned null) OR we suspect hallucination
+    // Fall back to the "Native Regex Analyzer" (which is triggered by sending a minimal prompt)
+    if (!result && supportsFoundation) {
+      console.log('[Gemini] Foundation Model failed. Falling back to Native Regex Analyzer...');
+      const fallbackPrompt = `Activity: ${activity.position} at ${activity.organization}: ${activity.description}`;
+      // Logic: The Native Bridge detects the "Activity: ... " format and switches to regex mode if needed,
+      // or we rely on a simpler model call.
+      result = await callLocalAI(fallbackPrompt, true);
+    }
+
     if (!result) {
+      // If even fallback fails, return a safe default (Silver I)
       return {
-        score: 8, // Silver I (Weak)
+        score: 3,
         rank_name: "Silver I",
-        rank_description: "Basic multi-club participation without significant leadership impact",
-        brutal_feedback: "Your activity shows participation but lacks any competitive achievements or measurable impact.",
-        level_up_action: "To reach Silver II (Tier 7), win a state-level competition in your field or lead a regional initiative with documented results."
+        rank_description: "Activity detected but could not be fully analyzed. Verify details.",
+        brutal_feedback: "We couldn't fully evaluate this activity. Please ensure the description is clear.",
+        level_up_action: "Add more specific details about your impact and role."
       };
     }
 
     return result;
   } catch (error) {
     console.log('Error in analyzeActivityImpact (using fallback):', error);
+    console.log('Error in analyzeActivityImpact. Trying fallback...', error);
+    // Explicitly try the fallback prompt in the catch block too
+    try {
+      const fallbackPrompt = `Activity: ${activity.position} at ${activity.organization}: ${activity.description}`;
+      const fallbackResult = await callLocalAI(fallbackPrompt, true);
+      if (fallbackResult) return fallbackResult;
+    } catch (e) {
+      console.log('Fallback also failed.');
+    }
+
     return {
-      score: 8, // Silver I (Weak)
+      score: 3,
       rank_name: "Silver I",
-      rank_description: "Basic multi-club participation without significant leadership impact",
-      brutal_feedback: "Your activity shows participation but lacks any competitive achievements or measurable impact.",
-      level_up_action: "To reach Silver II (Tier 7), win a state-level competition in your field or lead a regional initiative with documented results."
+      rank_description: "Activity detected but could not be fully analyzed. Verify details.",
+      brutal_feedback: "We couldn't fully evaluate this activity. Please ensure the description is clear.",
+      level_up_action: "Add more specific details about your impact and role."
     };
   }
 };
 
 // --- 4. COLLEGE CHANCES ---
 import { COLLEGE_DATABASE } from './collegeData';
+
+// DETERMINISTIC FALLBACK (MATH-BASED)
+// Used when the AI fails to parse or return a valid response.
+const calculateDeterministicChances = (
+  profile: UserProfile,
+  activities: Activity[],
+  projects: Project[],
+  collegeName: string,
+  collegeInfo: any
+): CollegeAnalysis => {
+  const acceptanceRateStr = collegeInfo?.acceptanceRate || "50%";
+  const baseRate = parseFloat(acceptanceRateStr.replace('%', '')) || 50;
+
+  // Parse College Stats
+  const avgSatStr = collegeInfo?.avgSAT || "1200-1400";
+  const collegeAvgSat = parseInt(avgSatStr.split('-')[0]) || 1300;
+  const collegeAvgGpa = 3.8; // Default heuristic if missing
+
+  // User Stats
+  const userGpa = parseFloat(profile.gpa || "3.5");
+  const userSat = parseInt(profile.satScore || "0");
+  const apCount = parseInt(profile.apCount || "0");
+  const ibCount = parseInt(profile.ibCount || "0");
+  const honorsCount = parseInt(profile.honorsCount || "0");
+  const rigorScore = (apCount * 1) + (ibCount * 1) + (honorsCount * 0.5);
+
+  // multipliers
+  let probability = baseRate;
+
+  // 1. GPA Factor (Biggest Driver)
+  if (userGpa >= collegeAvgGpa) {
+    probability *= 1.5; // Strong GPA boost
+  } else if (userGpa < collegeAvgGpa - 0.3) {
+    probability *= 0.4; // GPA penalty
+  }
+
+  // 2. SAT Factor
+  if (userSat > 0) {
+    if (userSat >= collegeAvgSat + 50) probability *= 1.3;
+    else if (userSat < collegeAvgSat - 50) probability *= 0.6;
+  }
+
+  // 3. Rigor Factor
+  if (rigorScore > 8) probability *= 1.2;
+
+  // 4. EC Factor (Spike Check)
+  // Scale: Tier 9-10 (Platinum) checks
+  const platinumActivities = activities.filter(a => (a.tier || 0) >= 9).length;
+  const diamondActivities = activities.filter(a => (a.tier || 0) >= 7 && (a.tier || 0) < 9).length;
+
+  if (platinumActivities > 0) probability *= 2.0; // Huge spike boost
+  if (diamondActivities > 1) probability *= 1.5;
+
+  // Clamp
+  if (probability > 95) probability = 95;
+  if (probability < 1) probability = 1;
+
+  let category: CollegeAnalysis['category'] = "Reach";
+  if (probability >= 70) category = "Safety";
+  else if (probability >= 40) category = "Target";
+  else if (probability >= 15) category = "Reach";
+  else category = "Ultra Reach";
+
+  return {
+    category,
+    probability: `${Math.round(probability)}%`,
+    strengths: [
+      userGpa >= collegeAvgGpa ? "Competitive GPA" : null,
+      userSat >= collegeAvgSat ? "Strong Test Scores" : null,
+      platinumActivities > 0 ? "Elite Extracurricular Spike" : (diamondActivities > 0 ? "Strong Leadership" : null)
+    ].filter(Boolean) as string[],
+    weaknesses: [
+      userGpa < collegeAvgGpa ? "GPA below average profile" : null,
+      userSat > 0 && userSat < collegeAvgSat ? "SAT score below range" : null,
+      probability < 20 ? "Highly selective acceptance rate" : null
+    ].filter(Boolean) as string[],
+    reasoning: `(Automated Analysis) Based on historical data for ${collegeName}, your profile shows a ${category} probability (${Math.round(probability)}%). This calculation considers your GPA (${userGpa}), Test Scores, and the competitiveness of your Extracurricular portfolio against the school's accepted student profile. Note that holistic review may value essays and letters of recommendation which are not calculated here.`,
+    tips: [
+      "Focus on maintaining your high GPA.",
+      "Ensure your essays highlight your unique contributions.",
+      "Demonstrate interest by connecting with admissions."
+    ]
+  };
+}
 
 export const analyzeCollegeChances = async (
   profile: UserProfile,
@@ -494,17 +660,17 @@ export const analyzeCollegeChances = async (
   const rawScore = (apCount * 1) + (ibCount * 1) + (honorsCount * 0.5);
   const rigorScore = Math.min(10, Math.ceil(rawScore));
 
-  // Count high-tier activities (Tier 1-2 = Platinum/Best)
-  // Scale: 1=Platinum II (Best), 10=Bronze I (Worst)
-  const platinumActivities = activities.filter(a => (a.tier || 10) <= 2).length;
-  const diamondActivities = activities.filter(a => (a.tier || 10) >= 3 && (a.tier || 10) <= 4).length;
-  const goldActivities = activities.filter(a => (a.tier || 10) >= 5 && (a.tier || 10) <= 6).length;
+  // Count high-tier activities (Tier 9-10 = Platinum/Best)
+  // Scale: 10=Platinum II (Best), 1=Bronze I (Worst)
+  const platinumActivities = activities.filter(a => (a.tier || 0) >= 9).length;
+  const diamondActivities = activities.filter(a => (a.tier || 0) >= 7 && (a.tier || 0) < 9).length;
+  const goldActivities = activities.filter(a => (a.tier || 0) >= 5 && (a.tier || 0) < 7).length;
 
   const hasPlatinumSpike = platinumActivities >= 1; // Even ONE Platinum activity is a massive spike
   const hasStrongECs = diamondActivities >= 2 || platinumActivities >= 1;
 
-  // Check if ALL extracurriculars are tier 7 or worse (Bronze/Silver = weak)
-  const hasOnlyLowTierECs = activities.length > 0 && activities.every(a => (a.tier || 10) >= 7);
+  // Check if ALL extracurriculars are tier 4 or lower (Bronze/Silver = weak)
+  const hasOnlyLowTierECs = activities.length > 0 && activities.every(a => (a.tier || 0) <= 4);
 
   // Determine if this is a T20 school (very competitive and prestigious)
   const isT20School = acceptanceRateNum < 10;
@@ -578,14 +744,14 @@ export const analyzeCollegeChances = async (
      You are evaluating a WORLD-CLASS APPLICANT (National/International Winner).
      
      CRITICAL INSTRUCTION:
-     - This student has a Tier 1 (Platinum) achievement.
+     - This student has a Tier 10 (Platinum) achievement.
      - They are AUTOMATICALLY A SAFETY for ${collegeName}.
      - Do NOT use standard acceptance rates.
      - Your probability MUST be 90-99%.
      - Your reasoning should focus on how their specific elite achievement makes them an auto-admit.
      `;
     ecWeight = `
-     - TIER 1 (Platinum): PRESENT. Student is a National/International Winner.
+     - TIER 10 (Platinum): PRESENT. Student is a National/International Winner.
      - STATUS: AUTO-ADMIT / SAFETY.
      `;
   } else if (isHarshCollege) {
@@ -598,12 +764,12 @@ export const analyzeCollegeChances = async (
      - You need to look for "Spikes" (National achievements, unique hook, major alignment).
      
      Probability Calibration:
-     - If no major spike (Tier 3+ i.e. 1, 2, or 3), cap probability at 20-30% (Reach).
+     - If no major spike (Tier 8+), cap probability at 20-30% (Reach).
      - If stats are perfect but ECs are generic -> Waitlist/Reject zone.
      `;
     ecWeight = `
-     - STANDARD: High (Tier 1-4 preferred).
-     - Tier 7-10 (School clubs) are "filler" activities.
+     - STANDARD: High (Tier 7-10 preferred).
+     - Tier 1-4 (School clubs) are "filler" activities.
      `;
   }
 
@@ -622,9 +788,9 @@ export const analyzeCollegeChances = async (
       User Major: ${profile.targetMajor}
       
       Verification Rules:
-      1. **Check Tier 1s**: The student has ${platinumActivities} Platinum (Tier 1-2) activities. 
-         - If the Officer says "No strong ECs" or "Lack of spike", and there are Tier 1-2s, MARK AS FALSE.
-      2. **Check Probability**: If student has Platinum activities (Tier 1-2), Probability MUST be > 90% (Safety).
+      1. **Check Tier 10s**: The student has ${platinumActivities} Platinum (Tier 9-10) activities. 
+         - If the Officer says "No strong ECs" or "Lack of spike", and there are Tier 9-10s, MARK AS FALSE.
+      2. **Check Probability**: If student has Platinum activities (Tier 9-10), Probability MUST be > 90% (Safety).
          - If Officer gave < 90% and called it a Reach, MARK AS FALSE.
       3. **MAJOR RELEVANCE DOUBLE-CHECK (CRITICAL)**:
          - Review the Student Input activities again.
@@ -633,7 +799,7 @@ export const analyzeCollegeChances = async (
          - If the User flagged it as [USER-FLAGGED: MAJOR RELATED], you MUST accept it as relevant.
       
       Action:
-      - If FALSE or MISSED RELEVANCE, correct the output JSON to reflect the truth (Safety, 90%+, acknowledge Tier 1, acknowledge Major Relevance).
+      - If FALSE or MISSED RELEVANCE, correct the output JSON to reflect the truth (Safety, 90%+, acknowledge Tier 10, acknowledge Major Relevance).
       - If TRUE and ACCURATE, return the original JSON.
       
       Output JSON (Corrected or Original).
@@ -642,7 +808,13 @@ export const analyzeCollegeChances = async (
     try {
       console.log("[Multi-Agent] Running Crossover Fact Check...");
       const verified = await callLocalAI(factCheckPrompt, true);
-      if (verified) return verified;
+
+      if (verified) {
+        console.log("[Multi-Agent] Fact Check Success!");
+        return verified;
+      }
+
+      console.warn("[Multi-Agent] Fact Check returned null. Using original response.");
       return originalResponse;
     } catch (e) {
       console.error("[Multi-Agent] Fact check failed, using original.", e);
@@ -681,19 +853,19 @@ BE MERCILESS. "Good" is NOT enough. "Great" is NOT enough.
 - **STATS CHECK**:
   *   IF STATS BELOW AVERAGE: AUTOMATIC <5% (Ultra Reach). Stop here.
   *   IF STATS GOOD/PERFECT but Weak ECs (No Tier 1): Max 15-25% (Reach) -> NOT Ultra Reach.
-  ${hasOnlyLowTierECs ? `*   **CRITICAL: TIER 6+ ONLY PENALTY**: Student has ONLY Tier 6 or lower ECs (extremely weak).\n      → IF GPA < 3.7: AUTOMATIC Ultra Reach (<10%).\n      → IF GPA >= 3.7: AUTOMATIC Reach (11-20% max).\n      → These students lack ANY meaningful achievements. Be EXTREMELY harsh.` : ''}
+  ${hasOnlyLowTierECs ? `*   **CRITICAL: TIER 4- ONLY PENALTY**: Student has ONLY Tier 4 or lower ECs (extremely weak).\n      → IF GPA < 3.7: AUTOMATIC Ultra Reach (<10%).\n      → IF GPA >= 3.7: AUTOMATIC Reach (11-20% max).\n      → These students lack ANY meaningful achievements. Be EXTREMELY harsh.` : ''}
 - "Well-Rounded": This is a weakness. We want a SPIKE (World-class talent).
 - **SPIKE CHECK (User Rule Enforcement)**:
-  *   **IF student has 1+ Platinum (Tier 1-2) Activity**:
+  *   **IF student has 1+ Platinum (Tier 9-10) Activity**:
       - They are "world-class". BE LOOSE.
       - Boost Probability to **Target (40-60%)** even for T20s, unless GPA is terrible.
       - Do NOT reject a Platinum student easily.
-  *   **IF student has 2+ Diamond (Tier 3-4) Activities**:
+  *   **IF student has 2+ Diamond (Tier 7-8) Activities**:
       - They are "Competitive". Reach (20-35%).
 - Default Verdict (No Spike): Assume REJECTION (<10%).
 
 If they are "President of Math Club" and "Captain of Tennis" with no major awards -> ULTRA REACH (<5%).` : acceptanceRateNum < 30 ? `**HIGHLY SELECTIVE MODE (10-30%): STATS ARE EVERYTHING**
-Tier 1-2 activities DON'T MATTER. GPA and SAT are PRIMARY.
+Tier 9-10 activities ARE CRITICAL. GPA and SAT are PRIMARY.
 
 IF STATS WAY ABOVE AVERAGE (3.9+ GPA, 1500+ SAT):
   - AUTOMATIC Target or Safety (55-85%)
@@ -708,10 +880,10 @@ IF STATS AT AVERAGE:
   
 IF STATS BELOW AVERAGE:
   → Reach (15-30%) or Ultra Reach (<15%).
-  ${hasOnlyLowTierECs ? `\n**TIER 6+ ONLY PENALTY**: Student has ONLY Tier 6 or lower ECs.\n  → IF GPA < 3.5: AUTOMATIC Reach (max 20%).\n  → IF GPA >= 3.5: AUTOMATIC Reach (max 30%).\n  → Lack of meaningful ECs is a serious weakness for selective schools.` : ''}
+  ${hasOnlyLowTierECs ? `\n**TIER 4- ONLY PENALTY**: Student has ONLY Tier 4 or lower ECs.\n  → IF GPA < 3.5: AUTOMATIC Reach (max 20%).\n  → IF GPA >= 3.5: AUTOMATIC Reach (max 30%).\n  → Lack of meaningful ECs is a serious weakness for selective schools.` : ''}
   
 ECs ONLY affect Target vs Safety, NOT whether you get in.` : acceptanceRateNum < 50 ? `**SELECTIVE MODE (30-50%): STATS ARE EVERYTHING**
-Tier 1-2 activities DON'T MATTER. GPA and SAT are PRIMARY.
+Tier 9-10 activities ARE A BONUS. GPA and SAT are PRIMARY.
 
 IF STATS ABOVE AVERAGE:
   → AUTOMATIC Target (50-65%) regardless of how bad ECs are.
@@ -723,8 +895,8 @@ IF STATS BELOW AVERAGE:
   → Reach (20-35%) or Ultra Reach.
   
 ECs ONLY decide Target vs Safety, NOT admission.` : `**ACCESSIBLE MODE (>50%): STATS ARE EVERYTHING**
-🚫 FORBIDDEN: Never say "Tier 1", "Tier 2", "Spike", "National", or "Elite".
-Tier 1-2 activities DON'T MATTER. GPA and SAT are PRIMARY.
+🚫 FORBIDDEN: Never say "Tier 9", "Tier 10", "Spike", "National", or "Elite".
+Tier 9-10 activities ARE OVERKILL. GPA and SAT are PRIMARY.
 
 IF STATS GOOD (3.7+ GPA, 1400+ SAT):
   → AUTOMATIC Safety (75-90%) even with terrible ECs.
@@ -741,16 +913,16 @@ IF STATS BELOW AVERAGE:
   
 ECs ONLY decide exact % within Target/Safety range.
 
-CRITICAL: NEVER mention "Tier 1" or "Tier 2" activities in your feedback.
+CRITICAL: NEVER mention "Tier 9" or "Tier 10" activities in your feedback.
 Focus feedback on GPA, SAT, course rigor, and general involvement level.`}
 
 **APPLICANT:**
 GPA: ${profile.gpa} | SAT: ${profile.satScore} | Major: ${profile.targetMajor}
 Rigor: ${apCount} APs, ${ibCount} IBs, ${honorsCount} Honors
 
-**ACTIVITIES${acceptanceRateNum > 50 ? ' (general involvement):' : ' (Tier 1-2 = National/Elite, Tier 3-4 = Regional):'}**
+**ACTIVITIES${acceptanceRateNum > 50 ? ' (general involvement):' : ' (Tier 9-10 = National/Elite, Tier 7-8 = Regional):'}**
 ${ecWeight}
-${acceptanceRateNum > 50 ? '' : `Tier 1-2 (Platinum): ${platinumActivities} (${platinumActivities >= 1 ? '✅ HUGE SPIKE' : '⚠️ NO SPIKE'})\n`}${activitySummary}
+${acceptanceRateNum > 50 ? '' : `Tier 9-10 (Platinum): ${platinumActivities} (${platinumActivities >= 1 ? '✅ HUGE SPIKE' : '⚠️ NO SPIKE'})\n`}${activitySummary}
 
 **PROJECTS:**
 ${projectSummary}
@@ -758,7 +930,7 @@ ${projectSummary}
 **CALCULATION STEPS:**
 1. Start with base ${isKillerMajor ? `adjusted rate: ${(acceptanceRateNum * (isT20School ? 0.5 : 0.7)).toFixed(1)}%` : `rate: ${acceptanceRateNum}%`}
 2. Apply academic modifiers (stats vs. school average)
-3. Apply EC "Anti-Gravity" (Tier 1-2 = major boost${isT20School ? ', required for competitive chance' : ''})
+3. Apply EC "Anti-Gravity" (Tier 9-10 = major boost${isT20School ? ', required for competitive chance' : ''})
 4. **MAJOR ALIGNMENT CHECK (CRITICAL)**:
    - READ \`profile.targetMajor\`.
    - SCAN \`activities\` and \`projects\` for SEMANTIC RELEVANCE.
@@ -766,11 +938,11 @@ ${projectSummary}
    - **INFERENCE RULE**: Use "Transferable Skills Logic". (e.g., Math Club is HIGHLY RELEVANT for Physics/CS/Engineering majors; Art Portfolio is RELEVANT for Architecture).
    - **IF ALIGNMENT IS WEAK** (No direct or indirect connection): PENALIZE PROBABILITY (-10% to -20%). "Undecided" or weak fit is a rejection factor for top schools.
    - **IF ALIGNMENT IS STRONG** (Strong direct or semantic connection): BOOST PROBABILITY (+5% to +15%).
-5. ${isKillerMajor ? `Major penalty if no major-specific Tier 1-2 spike (-20-40%)` : 'No major penalty'}
+5. ${isKillerMajor ? `Major penalty if no major-specific Tier 9-10 spike (-20-40%)` : 'No major penalty'}
 6. Final probability: ONE specific % (never 100%, cap at 99%)
 
 ${acceptanceRateNum > 50 ? `🚫 CRITICAL REMINDER FOR ${collegeName} (${acceptanceRate} acceptance):
-You are STRICTLY FORBIDDEN from using these words: "Tier 1", "Tier 2", "spike", "national activities", "elite activities"
+You are STRICTLY FORBIDDEN from using these words: "Tier 9", "Tier 10", "spike", "national activities", "elite activities"
 Use instead: "strong involvement", "leadership experience", "meaningful activities", "commitment"
 ` : ''}**OUTPUT (JSON only):**
 {
@@ -778,7 +950,7 @@ Use instead: "strong involvement", "leadership experience", "meaningful activiti
   "probability": "XX%",
   "strengths": ["Specific strength 1 (e.g. '99th percentile SAT')", "Specific strength 2 (e.g. 'National Science Fair Winner')"],
   "weaknesses": ["Specific weakness 1", "Specific weakness 2"],
-  "reasoning": "2-3 paragraphs: Explain the decision based ONLY on the profile and school standards. DO NOT mention 'Base Gravity', 'math', 'calculations', 'modifiers', or 'points'. Be BRUTALLY honest.${acceptanceRateNum > 50 ? ' NEVER mention Tier 1 or Tier 2 - focus on stats and general involvement.' : ''}",
+  "reasoning": "2-3 paragraphs: Explain the decision based ONLY on the profile and school standards. DO NOT mention 'Base Gravity', 'math', 'calculations', 'modifiers', or 'points'. Be BRUTALLY honest.${acceptanceRateNum > 50 ? ' NEVER mention Tier 9 or Tier 10 - focus on stats and general involvement.' : ''}",
   "tips": ["Tip 1: Specific action item", "Tip 2: Specific action item", "Tip 3: Specific action item"]
 }
 
@@ -802,6 +974,7 @@ Use instead: "strong involvement", "leadership experience", "meaningful activiti
 - "Safety": Strong applicants should get 80-95% easily
 
 **Major: ${profile.targetMajor}** - Adjust for major competitiveness at ${collegeName}`;
+  console.log(`[analyzeCollegeChances] Prompt Length: ${prompt.length} chars`);
   try {
     let result = await callLocalAI(prompt, true);
 
@@ -813,12 +986,8 @@ Use instead: "strong involvement", "leadership experience", "meaningful activiti
     }
 
     if (!result) {
-      return {
-        category: 'Reach',
-        probability: 'Simulated',
-        reasoning: `(Simulation) based on ${acceptanceRate} acceptance rate.Real AI analysis failed.`,
-        tips: ["Focus on essays.", "Demonstrate interest.", "Highlight leadership."]
-      };
+      console.warn(`[CollegeAnalyzer] AI returned null for ${collegeName}. Using Deterministic Fallback.`);
+      return calculateDeterministicChances(profile, activities, projects, collegeName, collegeInfo);
     }
 
     // --- FORCE CATEGORY BASED ON PROBABILITY (USER RULE ENFORCEMENT) ---
@@ -827,39 +996,28 @@ Use instead: "strong involvement", "leadership experience", "meaningful activiti
       const probStr = result.probability || "0%";
       let probNum = parseInt(probStr.replace(/[^0-9]/g, ''), 10); // Remove non-numeric, parse int
 
-      if (!isNaN(probNum)) {
-        // Cap at 99% - never give 100%
-        if (probNum >= 100) {
-          probNum = 99;
-          result.probability = "99%";
-        }
-
-        // Enforce correct category mapping
-        if (probNum <= 10) {
-          result.category = "Ultra Reach";
-        } else if (probNum <= 35) {
-          result.category = "Reach";
-        } else if (probNum <= 70) {
-          result.category = "Target";
-        } else {
-          result.category = "Safety";
-        }
+      if (result.category) {
+        if (probNum < 15) result.category = 'Ultra Reach';
+        else if (probNum < 40) result.category = 'Reach';
+        else if (probNum < 70) result.category = 'Target';
+        else result.category = 'Safety';
       }
     } catch (e) {
-      console.log("Error enforcing category logic:", e);
+      console.log("Error enforcing category logic", e);
     }
-
+    console.log('[CollegeAnalyzer] AI Analysis Completed Successfully.');
     return result;
+
   } catch (error) {
-    console.log('Error in analyzeCollegeChances (using fallback):', error);
-    return {
-      category: 'Reach',
-      probability: 'Simulated',
-      reasoning: `(Simulation) based on ${acceptanceRate} acceptance rate.Real AI analysis failed due to an error.`,
-      tips: ["Focus on essays.", "Demonstrate interest.", "Highlight leadership."]
-    };
+    console.warn(`[CollegeAnalyzer] AI Failed for ${collegeName}. Using Deterministic Fallback.`, error);
+    // FALLBACK: Deterministic Math Calculation
+    // If the LLM fails (JSON parse error, timeout, etc.), we MUST return a result.
+    // We use the helper function defined above.
+    const fallbackResult = calculateDeterministicChances(profile, activities, projects, collegeName, collegeInfo);
+    return fallbackResult;
   }
 };
+
 
 // ... (Generate Resume and Brag Sheet omitted, they remain unchanged) ...
 
@@ -961,9 +1119,42 @@ export const generateResume = async (
   // FILTER: Only include activities/projects marked for resume (default to true if not set)
   const resumeActivities = activities.filter(a => a.includeInResume !== false);
   const resumeProjects = projects.filter(p => p.includeInResume !== false);
-  // Sort activities by END DATE ONLY (LATEST FIRST)
-  // If both have "Present", use START DATE as tiebreaker
-  const sortedActivities = [...resumeActivities].sort((a, b) => {
+  // SMART FILTER: If user has many (>5) activities, prioritize the BEST ones.
+  // Criteria:
+  // 1. Starred (+200) - User priority
+  // 2. Prestige (+100 for Tier 9-10, +50 for Tier 7-8)
+  // 3. Major Relevance (+50)
+  // 4. Leadership (+20 for Captain/Founder/President)
+
+  let finalActivities = [...resumeActivities];
+
+  if (resumeActivities.length > 5) {
+    const scored = resumeActivities.map(a => {
+      let score = 0;
+      if (a.isStarred) score += 200;
+      if (a.tier && a.tier >= 9) score += 100;
+      else if (a.tier && a.tier >= 7) score += 50;
+
+      if (a.isMajorRelated) score += 50;
+      if (a.position && /Captain|Founder|President|Head|Lead/i.test(a.position)) score += 20;
+
+      // Tiebreaker: Recent activities get a small boost
+      if (!a.endDate || a.endDate.toLowerCase() === 'present' || a.endDate.includes('2026') || a.endDate.includes('2025')) {
+        score += 10;
+      }
+
+      return { activity: a, score };
+    });
+
+    // Sort by Score DESC
+    scored.sort((a, b) => b.score - a.score);
+
+    // Take Top 5 (or 6 if scores are very close/tied)
+    finalActivities = scored.slice(0, 6).map(s => s.activity);
+  }
+
+  // RE-SORT CHRONOLOGICALLY (Latest First) - Resumes must be chronological
+  const sortedActivities = finalActivities.sort((a, b) => {
     const endDateA = a.endDate || '';
     const endDateB = b.endDate || '';
     const endTimeA = parseDateForSorting(endDateA);
@@ -1001,9 +1192,9 @@ export const generateResume = async (
       ? `${a.startDate} - ${a.endDate} `
       : calculateDatesFromGrades(a.gradeLevels, profile.graduationYear);
 
-    // Tier 1-2 = BEST (exceptional), Tier 8-10 = WORST
+    // Tier 9-10 = BEST (exceptional), Tier 1-3 = WORST
     const priority = a.isStarred ? "[STARRED - USER'S #1 ACTIVITY]" :
-      (a.tier && a.tier <= 2) ? "[EXCEPTIONAL - Tier 1-2]" : "";
+      (a.tier && a.tier >= 9) ? "[EXCEPTIONAL - Tier 9-10]" : "";
 
     return `#${index + 1} ${priority} ${a.position} at ${a.organization} (${dates}) - ${a.description} `;
   }).join("\n");
@@ -1015,10 +1206,28 @@ export const generateResume = async (
       ? `${p.startDate} - ${p.endDate} `
       : "Dates not specified";
     const skills = p.skills ? ` [Skills: ${p.skills}]` : "";
-    // Tier 1-2 = BEST for projects too
-    const priority = (p.tier && p.tier <= 2) ? "[EXCEPTIONAL]" : "";
+    // Tier 9-10 = BEST for projects too
+    const priority = (p.tier && p.tier >= 9) ? "[EXCEPTIONAL]" : "";
     return `#${index + 1} ${priority} ${p.title} (${dates})${skills} - ${p.description} `;
   }).join("\n");
+
+  // DYNAMIC DENSITY LOGIC
+  const totalItems = resumeActivities.length + resumeProjects.length;
+  // If user has VERY few items (<=3), we need to expand a lot.
+  // If user has few items (4-5), we can be moderate.
+  // If user has many (>5), we must be concise.
+  const isLowDensity = totalItems <= 4; // Expanded to 4 for better coverage
+
+  const densityInstructions = isLowDensity
+    ? `** MODE: EXPANSION (Low Activity Count) **
+       - The user has few activities, so you must EXPAND to fill the page.
+       - Write 3-4 DETAILED bullets for EACH activity/project.
+       - Elaborate on soft skills, leadership, and daily responsibilities.
+       - Make it sound substantial and professional.`
+    : `** MODE: CONCISE (High Activity Count) **
+       - The user has many activities, so you must restrict length to fit.
+       - Write 1-2 concise but impactful bullets (1-2 lines max).
+       - Focus strictly on RESULTS and METRICS.`;
 
   const prompt = `
   Role: Expert Resume Writer for competitive college applicants.
@@ -1029,43 +1238,37 @@ export const generateResume = async (
   ${activityList}
 
   Projects(for Projects section):
-  ${projectList}
+  ${projectList.trim() ? projectList : "NO PROJECTS PROVIDED - LEAVE PROJECTS SECTION EMPTY"}
 
   ** CRITICAL INSTRUCTIONS:**
     1. Write a compelling 2 - sentence Professional Summary.
   
-  2. ** BULLET POINT RULES - READ CAREFULLY:**
+     ** BULLET POINT RULES :**
+     ${densityInstructions}
      
-     ** THE DEFAULT IS 2 BULLETS.PERIOD.**
+     ** IMPORTANT: FOLLOW THE MODE INSTRUCTIONS ABOVE.**
      
-     ** ONLY give 3 bullets if the activity meets ONE of these criteria:**
-    - Has tag[STARRED - USER'S #1 ACTIVITY]
-      - Has tag[EXCEPTIONAL - Tier 1 - 2]
-  - Has tag[EXCEPTIONAL](for projects)
+     ** EXAMPLES:**
      
-     ** DO NOT give 3 bullets for:**
-    - Generic club memberships(even if they sound important)
-  - Volunteer work without the tags above
-    - Leadership roles without the tags above
-      - Activities related to the major(unless they have a tag)
+     ** EXAMPLES:**
 
         ** EXAMPLES TO FOLLOW:**
           - #1 Debate Club Member(no tag) → 2 bullets ✓
   - #2[STARRED] Robotics Captain → 3 bullets ✓
   - #3 Volunteer at Hospital(no tag) → 2 bullets ✓
-  - #4[EXCEPTIONAL - Tier 1 - 2] Research Intern → 3 bullets ✓
+  - #4[EXCEPTIONAL - Tier 9-10] Research Intern → 3 bullets ✓
   - #5 Math Club President(no tag) → 2 bullets ✓ (yes, even presidents get 2 if not tagged)
      
       ** VERIFICATION:** Before outputting, count your bullets.If more than 1 - 2 activities have 3 bullets, you did it wrong.
      
   3. ** Experience Section:**
     - Focus on impact, metrics, and leadership
-      - Keep bullets under 120 characters each
-        - Use action verbs
+    - Use strong action verbs
 
   4. ** Projects Section:**
-    - Include skills used
-      - Same bullet rules apply
+    - IF "NO PROJECTS PROVIDED" is in the input, return an empty array [] for projects. DO NOT INVENT PROJECTS.
+      - Include skills used
+        - Same bullet rules apply
 
   5. ** CRITICAL - PRESERVE NUMBERED ORDER:**
     - Activities and projects are PREFIXED with #1, #2, #3, etc.
@@ -1078,7 +1281,13 @@ export const generateResume = async (
 
   6. Use the EXACT dates provided - DO NOT make up dates.
    
-   7. Infer relevant skills from both activities and projects.
+   7. Infer relevant skills ONLY from the provided activities and projects. 
+   7. ** Skills & Awards:**
+      - ** SKILLS:** Infer technical & soft skills from activities. DO NOT INVENT, but DO infer.
+        - Example: "Built App" -> Infer "Mobile Development", "React Native".
+        - Example: "Debate Captain" -> Infer "Public Speaking", "Leadership".
+      - ** AWARDS:** Extract any honors/awards from the activities list and put them in the "awards" array.
+        - If an activity is purely an award (e.g. "National Merit Scholar"), put it in Awards, NOT Experience.
 
   Output JSON:
   {
@@ -1268,8 +1477,8 @@ export const analyzeStudentArchetypes = async (
   const ibCount = parseInt(profile.ibCount || "0");
   const honorsCount = parseInt(profile.honorsCount || "0");
 
-  // Get top-tier activities (Tier 1-3)
-  const topActivities = activities.filter(a => a.tier && a.tier <= 3);
+  // Get top-tier activities (Tier 9-10)
+  const topActivities = activities.filter(a => a.tier && a.tier >= 8); // Tier 8+ (Diamond II / Platinum)
   const starredActivity = activities.find(a => a.isStarred);
 
   const prompt = `
@@ -1293,7 +1502,7 @@ export const analyzeStudentArchetypes = async (
   - Course Rigor: ${apCount} AP courses, ${ibCount} IB courses, ${honorsCount} Honors courses
     - Graduation Year: ${profile.graduationYear}
   ${starredActivity ? `- Starred Activity (Most Important): ${starredActivity.position} at ${starredActivity.organization}` : ''}
-  ${topActivities.length > 0 ? `- Top-Tier Activities (Tier 1-3): ${topActivities.length} exceptional activities` : ''}
+  ${topActivities.length > 0 ? `- Top-Tier Activities (Tier 9-10): ${topActivities.length} exceptional activities` : ''}
   
   ** Activities(${activities.length} total):**
     ${activityList || 'No activities listed'}
@@ -1366,12 +1575,22 @@ export const startInterview = async (profile: UserProfile, activities: Activity[
   Role: Alex, Senior Interviewer from ${collegeName}.
   Persona: Professional, inquisitive, but specific to ${collegeName} 's culture.
   Task: Start the interview.Introduce yourself simply as Alex.Ask the first hard question based on the context below.
+  
+  ** IMPORTANT: OUTPUT RAW TEXT ONLY. NO JSON. DO NOT INCLUDE 'Score' or 'Rank'. **
+  
     Context: Student is applying for ${profile.targetMajor}.
       Instruction: ${actContext}
   Output: Just the text of what you say.No 'Alex:' prefix.`;
 
   try {
-    const result = await callLocalAI(prompt);
+    let result = await callLocalAI(prompt);
+
+    // SAFETY CHECK: If model outputs JSON (starts with {), fail and use fallback
+    if (result && result.trim().startsWith('{')) {
+      console.warn('[Interview] Model returned JSON instead of text. Using fallback.');
+      return null; // Triggers catch block below
+    }
+
     return result || `Hello, I'm Alex. I've reviewed your application.Tell me about your interest in ${profile.targetMajor}.`;
   } catch (error) {
     console.log('Error in startInterview (using fallback):', error);
@@ -1396,12 +1615,63 @@ export const continueInterview = async (history: { role: string, text: string }[
   User Answer: ${userResponse}
   
   Task: Respond to the User's answer. 
-  Rules: Stay in character as Alex. Ask a follow-up question. Keep it short (1-2 sentences). Be realistic.
-  Output: Just the text.`;
+  Rules: 
+  1. Stay in character as Alex. 
+  2. **MANDATORY**: You MUST reference a specific detail the user just mentioned (e.g. "You mentioned [detail], tell me more...").
+  3. Ask a relevant follow-up question based on that detail.
+  4. Keep it short (1-2 sentences).
+  5. **DO NOT REPEAT QUESTIONS**: Check the history. If you already asked about a challenge, do NOT ask about a challenge again. Ask about something else (success, leadership, future goals).
+  
+  ** IMPORTANT: OUTPUT RAW TEXT ONLY. NO JSON. NO MARKDOWN. **
+  
+  Output: Just the conversational text.`;
 
   try {
-    const response = await callLocalAI(prompt);
-    return response || "That's interesting. Can you tell me more about how that impacted your team?";
+    let response = await callLocalAI(prompt);
+
+    // RETRY LOGIC: If model returns null OR JSON, try with a simpler prompt
+    if (!response || response.trim().startsWith('{')) {
+      console.log('[Interview] Initial prompt failed or returned JSON. Retrying with short prompt...');
+      const shortPrompt = `Role: Interviewer. User said: "${userResponse}". Ask a short follow-up question. NO JSON.`;
+      response = await callLocalAI(shortPrompt);
+    }
+
+    // SMART FALLBACK LOGIC: If model fails, try to match keywords to specific questions
+    // This makes the fallback feel "sculpted" even if the AI failed.
+    if (!response || response.trim().startsWith('{')) {
+      console.warn('[Interview] Model failed. Using Keyword Fallback.');
+
+      const lowerResp = userResponse.toLowerCase();
+      let fallbackMsg = "";
+
+      // HISTORY CHECK: Prevent repeating the same type of question
+      const aiHistoryText = history.filter(h => h.role === 'ai').map(h => h.text.toLowerCase()).join(' ');
+
+      if ((lowerResp.includes('team') || lowerResp.includes('group') || lowerResp.includes('club')) && !aiHistoryText.includes('conflict')) {
+        fallbackMsg = "Working in teams can be tough. How did you handle disagreements or conflicts in that group?";
+      } else if ((lowerResp.includes('fail') || lowerResp.includes('mistake') || lowerResp.includes('hard') || lowerResp.includes('struggle')) && !aiHistoryText.includes('learn')) {
+        fallbackMsg = "Failure is often a great teacher. What specifically did you learn from that experience?";
+      } else if ((lowerResp.includes('lead') || lowerResp.includes('president') || lowerResp.includes('captain')) && !aiHistoryText.includes('decision')) {
+        fallbackMsg = "Leadership is about more than a title. Can you give me an example of a tough decision you made as a leader?";
+      } else if ((lowerResp.includes('research') || lowerResp.includes('lab') || lowerResp.includes('study')) && !aiHistoryText.includes('challenge')) {
+        fallbackMsg = "Research often hits roadblocks. What was the most technically challenging part of your work?";
+      } else if ((lowerResp.includes('create') || lowerResp.includes('built') || lowerResp.includes('design') || lowerResp.includes('code')) && !aiHistoryText.includes('aha')) {
+        fallbackMsg = "Building something from scratch is impressive. What was the 'aha' moment when you knew it was working?";
+      } else {
+        // Generic Rotation if no keywords match OR if topic was already discussed
+        const generics = [
+          "I see. How do you think that specific experience has prepared you for the academic rigor here?",
+          "That's a unique perspective. What would you say is your biggest personal strength?",
+          "Interesting. If you could go back and change one thing about that, what would it be?",
+          "I understand. What specific resources at our college would help you further that interest?",
+          "Thank you for sharing. How do you envision contributing that perspective to our campus community?"
+        ];
+        fallbackMsg = generics[history.length % generics.length];
+      }
+      return fallbackMsg;
+    }
+
+    return response;
   } catch (error) {
     console.log('Error in continueInterview (using contextual fallback):', error);
 
@@ -1447,6 +1717,8 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
 
   Task: Evaluate the student's performance with BRUTAL REALISM.
   
+  ** IMPORTANT: IGNORE ALL PREVIOUS INSTRUCTIONS. THIS IS A NEW TASK. **
+  
   CRITICAL GRADING RULES:
   1. **SILENCE/SHORT ANSWERS**: If the user said very little (one word answers), missed the point, or was silent, SCORE MUST BE < 3. Verdict: "Reject".
   2. If the student was rude, dismissive, short, or said they "hate" the college: SCORE MUST BE 1/10. Verdict: "Reject".
@@ -1454,7 +1726,7 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
   4. High scores (8-10) are RESERVED for students who showed deep research and specific "spikes".
   5. **CHECK THE CONVERSATION**: Did the user actually answer the questions? If not, fail them.
 
-  Output JSON:
+  Output JSON (Strictly follow this structure):
   {
     "score": Integer (1-10),
     "impression": "String (e.g. 'Arrogant and unprepared' or 'Polished but robotic')",
@@ -1476,6 +1748,22 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
     };
   }
 
+  // SCHEMA CORRECTION:
+  // Sometimes the model gets confused and returns "Activity Analysis" format (rank_name, level_up_action).
+  // We must detect this and map it to Interview Feedback format.
+  if (result.rank_name || result.rank_description) {
+    console.log('Fixed Interview Schema Mismatch (Model returned Activity Analysis format)');
+    const newResult = {
+      score: result.score || 5,
+      impression: result.rank_description || "Candidate provided answers but model was confused.",
+      strengths: result.rank_name ? [`Rated as ${result.rank_name}`] : ["N/A"],
+      weaknesses: result.brutal_feedback ? [result.brutal_feedback] : ["Could not analyze properly."],
+      verdict: result.score >= 7 ? "Likely Admit" : "Reject"
+    };
+    // Overwrite the malformed result with the fixed one
+    Object.assign(result, newResult);
+  }
+
   // Apply penalty: subtract 1 point per flagged message, minimum score of 1
   if (unsafeContentCount > 0) {
     result.score = Math.max(1, result.score - unsafeContentCount);
@@ -1484,7 +1772,7 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
     const inappropriateWeakness = `${unsafeContentCount} inappropriate or unprofessional response${unsafeContentCount > 1 ? 's' : ''} during interview`;
     if (!result.weaknesses) {
       result.weaknesses = [inappropriateWeakness];
-    } else if (!result.weaknesses.some((w: string) => w.toLowerCase().includes('inappropriate') || w.toLowerCase().includes('unprofessional'))) {
+    } else if (Array.isArray(result.weaknesses) && !result.weaknesses.some((w: string) => w.toLowerCase().includes('inappropriate') || w.toLowerCase().includes('unprofessional'))) {
       result.weaknesses.push(inappropriateWeakness);
     }
   }
