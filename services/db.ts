@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   HONORS: 'pathway_honors',
   COLLEGES: 'pathway_colleges',
   PROJECTS: 'pathway_projects',
+  HAS_SEEN_TUTORIAL: 'pathway_has_seen_tutorial',
 };
 
 class DatabaseService {
@@ -143,6 +144,16 @@ class DatabaseService {
   async deleteProject(id: string): Promise<void> {
     const projects = (await this.getProjects()).filter(p => p.id !== id);
     await this.setItem(STORAGE_KEYS.PROJECTS, projects);
+  }
+
+  // --- Tutorial State ---
+  async getHasSeenTutorial(): Promise<boolean> {
+    const val = await this.getItem(STORAGE_KEYS.HAS_SEEN_TUTORIAL);
+    return val === true;
+  }
+
+  async setHasSeenTutorial(hasSeen: boolean): Promise<void> {
+    await this.setItem(STORAGE_KEYS.HAS_SEEN_TUTORIAL, hasSeen);
   }
 
   // --- Utility to Seed Data ---

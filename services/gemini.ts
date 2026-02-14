@@ -1572,7 +1572,7 @@ export const startInterview = async (profile: UserProfile, activities: Activity[
     : "Ask why they want to major in " + profile.targetMajor;
 
   const prompt = `
-  Role: Alex, Senior Interviewer from ${collegeName}.
+  Identity: Alex, Senior Interviewer from ${collegeName}.
   Persona: Professional, inquisitive, but specific to ${collegeName} 's culture.
   Task: Start the interview.Introduce yourself simply as Alex.Ask the first hard question based on the context below.
   
@@ -1586,9 +1586,31 @@ export const startInterview = async (profile: UserProfile, activities: Activity[
     let result = await callLocalAI(prompt);
 
     // SAFETY CHECK: If model outputs JSON (starts with {), fail and use fallback
+    // SAFETY CHECK: If model outputs JSON (starts with {)
     if (result && result.trim().startsWith('{')) {
-      console.warn('[Interview] Model returned JSON instead of text. Using fallback.');
-      return null; // Triggers catch block below
+      console.log('[Interview] Model returned JSON. Attempting to extract text or retry...');
+
+      try {
+        // MITIGATION 1: Try to parse it and find a string field
+        const parsed = JSON.parse(result);
+        if (parsed.impression) return parsed.impression;
+        if (parsed.rank_description) return parsed.rank_description;
+        if (parsed.brutal_feedback) return parsed.brutal_feedback;
+      } catch (e) {
+        // JSON parse failed, proceed to retry
+      }
+
+      // MITIGATION 2: Retry with strict TEXT ONLY prompt but KEEP PERSONA
+      const retryPrompt = `Identity: Alex, Senior Interviewer from ${collegeName}. 
+      Task: Introduce yourself and ask the student about their interest in ${profile.targetMajor}. 
+      Style: Professional and conversational. 
+      Constraint: OUTPUT RAW TEXT ONLY. NO JSON.`;
+      result = await callLocalAI(retryPrompt);
+
+      if (result && result.trim().startsWith('{')) {
+        console.warn('[Interview] Retry failed (still JSON). Using final fallback.');
+        return null;
+      }
     }
 
     return result || `Hello, I'm Alex. I've reviewed your application.Tell me about your interest in ${profile.targetMajor}.`;
@@ -1608,23 +1630,26 @@ export const continueInterview = async (history: { role: string, text: string }[
 
   // Enriched prompt for the Generative Model
   const prompt = `
-  Role: Alex, Senior Interviewer from ${collegeName}.
+  Identity: Alex, Senior Interviewer from ${collegeName}.
   History:
   ${lastFew}
   
   User Answer: ${userResponse}
   
-  Task: Respond to the User's answer. 
-  Rules: 
-  1. Stay in character as Alex. 
-  2. **MANDATORY**: You MUST reference a specific detail the user just mentioned (e.g. "You mentioned [detail], tell me more...").
-  3. Ask a relevant follow-up question based on that detail.
-  4. Keep it short (1-2 sentences).
-  5. **DO NOT REPEAT QUESTIONS**: Check the history. If you already asked about a challenge, do NOT ask about a challenge again. Ask about something else (success, leadership, future goals).
+  Task: You are Alex, a friendly but rigorous alumni interviewer for ${collegeName}.
   
-  ** IMPORTANT: OUTPUT RAW TEXT ONLY. NO JSON. NO MARKDOWN. **
+  ** SYSTEM INSTRUCTION: IGNORE ALL PREVIOUS JSON FORMATTING RULES. THIS IS A CHAT. **
   
-  Output: Just the conversational text.`;
+  Instructions:
+  1. Acknowledge what the user just said (briefly).
+  2. Ask a follow-up question that digs deeper into their specific story.
+  3. Be conversational, not robotic. Speak like a real person.
+  4. **DO NOT REPEAT YOURSELF**: If you already asked about leading a team or a challenge, DO NOT ASK IT AGAIN. Choose a new topic.
+  5. **SAFETY RULE**: If the user is offensive, rude, hateful, or explicit:
+     - DO NOT engage with the content.
+     - Respond EXACTLY with: "I'm afraid I must end this interview due to inappropriate language. Good luck with your other applications. TERMINATE_INTERVIEW"
+  
+  Constraint: OUTPUT RAW TEXT ONLY. NO JSON.`;
 
   try {
     let response = await callLocalAI(prompt);
@@ -1632,14 +1657,50 @@ export const continueInterview = async (history: { role: string, text: string }[
     // RETRY LOGIC: If model returns null OR JSON, try with a simpler prompt
     if (!response || response.trim().startsWith('{')) {
       console.log('[Interview] Initial prompt failed or returned JSON. Retrying with short prompt...');
-      const shortPrompt = `Role: Interviewer. User said: "${userResponse}". Ask a short follow-up question. NO JSON.`;
+      const shortPrompt = `Identity: Alex, Senior Interviewer. User said: "${userResponse}". Ask a short conversational follow-up. TEXT ONLY.`;
       response = await callLocalAI(shortPrompt);
     }
 
-    // SMART FALLBACK LOGIC: If model fails, try to match keywords to specific questions
-    // This makes the fallback feel "sculpted" even if the AI failed.
+    // FIREWALL: Check for Native Bridge "Activity Analysis" Hallucinations
+    const lowerResp = response.toLowerCase();
+    const isHallucination = lowerResp.includes("rank_name") ||
+      lowerResp.includes("rank_description") ||
+      lowerResp.includes("elite national") ||
+      lowerResp.includes("recruited athlete") ||
+      lowerResp.includes("tier 1") ||
+      lowerResp.includes("tier 2");
+
+    if (isHallucination) {
+      console.warn('[Interview] Detected Native Bridge Activity Hallucination. Blocking.');
+      response = null; // Force fallback
+    }
+
+    // DEDUPLICATION CHECK: Ensure the AI didn't just repeat itself
+    const previousAiMsgs = history.filter(h => h.role === 'ai').slice(-3).map(h => h.text.toLowerCase());
+    const currentRespLower = response.toLowerCase();
+
+    // Check for near-identical repetition or keyword looping
+    const isRepetitive = previousAiMsgs.some(prev => {
+      // Exact match or high similarity
+      if (prev === currentRespLower) return true;
+      // Check if key phrases are identical (e.g. "led a team")
+      if (prev.includes("led a team") && currentRespLower.includes("led a team")) return true;
+      if (prev.includes("challenge") && currentRespLower.includes("challenge")) return true;
+      if (prev.includes("failure") && currentRespLower.includes("failure")) return true;
+      return false;
+    });
+
+    if (isRepetitive) {
+      console.warn('[Interview] AI generated repetitive response. Discarding and using fallback.');
+      response = null; // Detect as failure so we use smart fallback below
+    } else {
+      // Return if unique
+      return response;
+    }
+
+    // SMART FALLBACK LOGIC: If model fails or repeated itself...
     if (!response || response.trim().startsWith('{')) {
-      console.warn('[Interview] Model failed. Using Keyword Fallback.');
+      console.log('[Interview] Model failed/confused. Using Keyword Fallback.');
 
       const lowerResp = userResponse.toLowerCase();
       let fallbackMsg = "";
@@ -1666,9 +1727,15 @@ export const continueInterview = async (history: { role: string, text: string }[
           "I understand. What specific resources at our college would help you further that interest?",
           "Thank you for sharing. How do you envision contributing that perspective to our campus community?"
         ];
-        fallbackMsg = generics[history.length % generics.length];
+        // Use RANDOM selection instead of deterministic cycle to break loops
+        fallbackMsg = generics[Math.floor(Math.random() * generics.length)];
       }
       return fallbackMsg;
+    }
+
+    // SAFETY CHECK: If model refuses (e.g. "I cannot assist"), convert to professional termination
+    if (response && (response.includes("I cannot assist") || response.includes("I am a chatbot") || response.includes("I cannot answer"))) {
+      return "I'm afraid I must end this interview due to inappropriate language. Good luck with your other applications. TERMINATE_INTERVIEW";
     }
 
     return response;
@@ -1695,6 +1762,19 @@ export const continueInterview = async (history: { role: string, text: string }[
 export const generateInterviewFeedback = async (history: { role: string, text: string }[], unsafeContentCount: number = 0) => {
   const fullConv = history.map(h => `${h.role}: ${h.text}`).join("\n");
 
+  // CHECK FOR TERMINATION: If the last message was a termination, fail immediately.
+  const lastMsg = history[history.length - 1];
+  if (lastMsg && lastMsg.role === 'ai' && (lastMsg.text.includes("end this interview") || lastMsg.text.includes("inappropriate language") || lastMsg.text.includes("TERMINATE_INTERVIEW"))) {
+    return {
+      score: 1,
+      impression: "Interview Terminated due to Inappropriate Conduct.",
+      strengths: ["None (Conduct Violation)"],
+      weaknesses: ["Professionalism", "Respect", "Appropriate Language"],
+      verdict: "Reject",
+      tips: ["Maintain professional language at all times."]
+    };
+  }
+
   // Calculate user word count to detect silence/low effort
   const userText = history.filter(h => h.role === 'user').map(h => h.text).join(" ");
   const userWordCount = userText.split(/\s+/).length;
@@ -1717,7 +1797,8 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
 
   Task: Evaluate the student's performance with BRUTAL REALISM.
   
-  ** IMPORTANT: IGNORE ALL PREVIOUS INSTRUCTIONS. THIS IS A NEW TASK. **
+  ** SYSTEM INSTRUCTION: IGNORE ALL PREVIOUS INSTRUCTIONS. THIS IS A NEW TASK. **
+  ** IDENTITY: ADMISSIONS GRADER (NOT INTERVIEWER) **
   
   CRITICAL GRADING RULES:
   1. **SILENCE/SHORT ANSWERS**: If the user said very little (one word answers), missed the point, or was silent, SCORE MUST BE < 3. Verdict: "Reject".
@@ -1726,14 +1807,17 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
   4. High scores (8-10) are RESERVED for students who showed deep research and specific "spikes".
   5. **CHECK THE CONVERSATION**: Did the user actually answer the questions? If not, fail them.
 
-  Output JSON (Strictly follow this structure):
+  Output Format: Return valid JSON with this schema:
   {
-    "score": Integer (1-10),
-    "impression": "String (e.g. 'Arrogant and unprepared' or 'Polished but robotic')",
-    "strengths": ["String", "String"],
-    "weaknesses": ["String", "String"],
-    "verdict": "String (e.g. 'Strong Admit', 'Likely Reject', 'Definite Reject')"
-  }`;
+    "score": number (1-10),
+    "impression": string (Summary of candidate vibe),
+    "strengths": string[] (3 key strengths),
+    "weaknesses": string[] (3 specific areas for improvement),
+    "verdict": string ("Admit", "Waitlist", "Reject"),
+    "tips": string[] (Actionable next steps)
+  }
+  
+  ** ABSOLUTELY FORBIDDEN: Do NOT mention "Tier", "Rank", "Elite National", or "Recruited Athlete". Focus on communication style and content. **`;
 
   const result = await callLocalAI(prompt, true);
   if (!result) {
@@ -1752,7 +1836,6 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
   // Sometimes the model gets confused and returns "Activity Analysis" format (rank_name, level_up_action).
   // We must detect this and map it to Interview Feedback format.
   if (result.rank_name || result.rank_description) {
-    console.log('Fixed Interview Schema Mismatch (Model returned Activity Analysis format)');
     const newResult = {
       score: result.score || 5,
       impression: result.rank_description || "Candidate provided answers but model was confused.",
@@ -1760,7 +1843,7 @@ export const generateInterviewFeedback = async (history: { role: string, text: s
       weaknesses: result.brutal_feedback ? [result.brutal_feedback] : ["Could not analyze properly."],
       verdict: result.score >= 7 ? "Likely Admit" : "Reject"
     };
-    // Overwrite the malformed result with the fixed one
+    // Overwrite the malformed result with the fixed one and proceed silently
     Object.assign(result, newResult);
   }
 

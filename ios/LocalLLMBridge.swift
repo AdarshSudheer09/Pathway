@@ -60,9 +60,17 @@ public class LocalLLMBridge: NSObject {
     
     print("[Tier Analysis] Routing prompt (first 200 chars): \(String(promptLower.prefix(200)))")
     
-    // Determine type of analysis - CHECK ACTIVITY FIRST (more specific)
+    // Determine type of analysis
+    
+    // 1. CHECK INTERVIEW (Explicit "Identity: Alex") - HIGHEST PRIORITY
+    if (promptLower.contains("identity: alex") || promptLower.contains("identity: admissions grader") || promptLower.contains("interviewer")) {
+        print("[Tier Analysis] → Routing to Interview Analyzer")
+        return analyzeInterview(prompt: prompt)
+    }
+
+    // 2. CHECK ACTIVITY (Heuristic)
     // Activity prompts contain "Activity:" field or explicit activity/impact keywords
-    if promptLower.contains("activity:") || 
+    else if promptLower.contains("activity:") || 
        (promptLower.contains("activity") && (promptLower.contains("impact") || promptLower.contains("evaluate this activity"))) ||
        promptLower.contains("role:") || 
        promptLower.contains("position:") {
@@ -113,6 +121,35 @@ public class LocalLLMBridge: NSObject {
       ]
     }
     """
+    return jsonResponse
+  }
+
+  // MARK: - Interview Analysis (Mock Fallback)
+  private func analyzeInterview(prompt: String) -> String {
+    // Return a SAFE mock response for interview feedback if model totally fails
+    
+    // Default "Pass" if we can't really analyze
+    let jsonResponse = """
+    {
+      "score": 7,
+      "impression": "The candidate communicated clearly but the AI model could not fully evaluate specific details. This is a placeholder evaluation.",
+      "strengths": ["Communication", "Responsiveness"],
+      "weaknesses": ["Detail Depth (AI limitation)"],
+      "verdict": "Likely Admit",
+      "tips": ["Continue to be specific in your examples."]
+    }
+    """
+    
+    // If it's just a chat turn (not grading), we might need to return text?
+    // But this function is only called if Foundation Model fails. 
+    // If the JS expects text for chat, and JSON for grading... this JSON is only for grading.
+    // Ideally, for chat turns, we should return text.
+    
+    if prompt.lowercased().contains("identity: alex") && !prompt.lowercased().contains("grader") {
+        // It's a chat turn
+        return "That sounds interesting. Can you tell me more about how you plan to handle the academic workload?"
+    }
+    
     return jsonResponse
   }
   
