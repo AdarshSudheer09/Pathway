@@ -489,7 +489,7 @@ export default function App() {
   // Tutorial Logic handled by Overlay mostly now
 
   const handleTutorialNext = async () => {
-    if (tutorialStep < 12) {
+    if (tutorialStep < 10) {
       setTutorialStep(tutorialStep + 1);
     } else {
       await db.setHasSeenTutorial(true);
@@ -561,8 +561,12 @@ export default function App() {
   };
 
   // Helper to navigate and scroll to top
-  const navigateToView = (newView: string) => {
+  const scrollToTop = () => {
     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const navigateToView = (newView: string) => {
+    scrollToTop();
     setView(newView);
   };
 
@@ -637,6 +641,25 @@ export default function App() {
         }
       }
     ]);
+  };
+
+  const handleNewActivity = () => {
+    setEditingActivity({
+      id: Date.now().toString(),
+      position: '',
+      organization: '',
+      description: '',
+      type: ActivityType.OTHER,
+      gradeLevels: [],
+      hoursPerWeek: 0,
+      weeksPerYear: 0,
+      isTimingSchoolYear: false,
+      isTimingBreak: false,
+      isTimingAllYear: false,
+      includeInResume: true
+    });
+    setImpactAnalysis(null);
+    navigateToView('editor');
   };
 
   const handleNewProject = () => {
@@ -969,8 +992,9 @@ export default function App() {
               {view === 'dashboard' && (
                 <View style={s.container}>
                   {/* Only show Personal Brand if supported */}
+                  {/* During tutorial, force "Default State" (Hero Card) by pretending analysis is null */}
                   {foundationSupported && (
-                    profile?.narrativeAnalysis ? (
+                    (profile?.narrativeAnalysis && !showTutorial) ? (
                       <View style={s.brandCard}>
                         <View style={s.brandHeader}>
                           <Lightbulb color="#818cf8" size={24} />
@@ -1008,11 +1032,7 @@ export default function App() {
                     <Text style={s.sectionTitle}>Activities</Text>
                     <TouchableOpacity
                       style={s.addBtn}
-                      onPress={() => {
-                        setEditingActivity({ id: Date.now().toString(), position: '', organization: '', description: '', type: ActivityType.OTHER, gradeLevels: [], hoursPerWeek: 0, weeksPerYear: 0, isTimingSchoolYear: false, isTimingBreak: false, isTimingAllYear: false, includeInResume: true });
-                        navigateToView('editor');
-                        setImpactAnalysis(null);
-                      }}
+                      onPress={handleNewActivity}
                     >
                       <Plus color="#000" size={16} />
                       <Text style={s.addBtnTxt}>Add Activity</Text>
@@ -1825,6 +1845,9 @@ export default function App() {
         handleTutorialSkip={handleTutorialSkip}
         view={view}
         setView={setView}
+        foundationSupported={foundationSupported}
+        scrollToTop={scrollToTop}
+        handleNewActivity={handleNewActivity}
       />
       {false && (() => {
         // --- COORDINATE CALCULATIONS ---
@@ -1979,10 +2002,17 @@ export default function App() {
 
 
 
-const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTutorialNext, handleTutorialSkip, view, setView, foundationSupported }: any) => {
+const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTutorialNext, handleTutorialSkip, view, setView, foundationSupported, scrollToTop, handleNewActivity }: any) => {
   const insets = useSafeAreaInsets();
   // Animation State
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Scroll to top when tutorial starts or steps change to Dashboard
+  useEffect(() => {
+    if (showTutorial && (tutorialStep === 3 || tutorialStep === 11)) {
+      scrollToTop?.();
+    }
+  }, [tutorialStep, showTutorial]);
 
   useEffect(() => {
     if (showTutorial) {
@@ -2016,25 +2046,30 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
   let title = "";
   let showSkip = true;
 
+
+
+
   if (tutorialStep === 0) {
     // Welcome Modal
     showSkip = false;
   } else if (tutorialStep === 1) {
-    // Profile Button (Top Right)
+    // Profile Button
     const btnWidth = 100;
-    target = { x: width - btnWidth - 20, y: safeTop + 10, w: btnWidth, h: 40 };
+    // Adjusted: Lowered slightly from +2 to +6
+    target = { x: width - btnWidth - 20, y: safeTop + 6, w: btnWidth, h: 40 };
     title = "Your Profile";
     text = "Tap here to edit your GPA, Test Scores, and Major.";
-    // MOVE HIGHER UP as requested
     bubblePos = { top: target.y + 50, right: 20 };
   } else if (tutorialStep === 2) {
     title = "Your Profile";
     text = "Enter your stats here for accurate AI analysis.";
     bubblePos = { top: 180, alignSelf: 'center', marginHorizontal: 20 };
   } else if (tutorialStep === 3) {
-    // NEW: Add Activity Spotlight (Approx Loc: Right side, ~400 down)
-    // We target the "Add Activity" button area generally
-    target = { x: width - 130, y: safeTop + 330, w: 110, h: 40 };
+    // Add Activity Spotlight
+    // Adjusted: Wider box to ensure coverage
+    // Forced "Default State" (Hero Card) during tutorial
+    // Lower by 1/8 block height (45/8 ~ 6px) -> 296 + 6 = 302
+    target = { x: width - 160, y: safeTop + 302, w: 140, h: 45 };
     title = "Add Activities";
     text = "Tap 'Add Activity' to build your extracurricular profile.";
     bubblePos = { top: target.y + 50, left: 20 };
@@ -2043,54 +2078,45 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
     text = "We'll analyze your activities to give you a Tier Rating (1-10).";
     bubblePos = { top: 300, alignSelf: 'center' };
   } else if (tutorialStep === 5) {
-    // NEW: Add Project Spotlight (Approx Loc: Right side, ~470 down)
-    target = { x: width - 130, y: safeTop + 400, w: 110, h: 40 };
-    title = "Showcase Projects";
-    text = "Built an app or started a business? Add it here.";
-    bubblePos = { top: target.y + 50, left: 20 };
-  } else if (tutorialStep === 6) {
-    title = "Project Portfolio";
-    text = "Detailed projects help you stand out to admissions officers.";
-    bubblePos = { top: 350, alignSelf: 'center' };
-  } else if (tutorialStep === 7) {
-    // Colleges (Was 3)
+    // Colleges (Was 7)
     const schoolX = navStartX + 92 - 25;
     target = { x: schoolX, y: navY - 5, w: 50, h: 50 };
     title = "College List";
     text = "Tap the School icon to search colleges.";
     bubblePos = { bottom: 120, alignSelf: 'center' };
-  } else if (tutorialStep === 8) {
-    // Colleges Expl (Was 4)
+  } else if (tutorialStep === 6) {
+    // Colleges Expl (Was 8)
     title = "College Chances";
     text = "We compare your profile to admitted student data.";
     bubblePos = { top: 200, alignSelf: 'center' };
-  } else if (tutorialStep === 9) {
-    // Interview (Was 5)
+  } else if (tutorialStep === 7) {
+    // Interview (Was 9)
     const intX = navStartX + 148 - 25;
     target = { x: intX, y: navY - 5, w: 50, h: 50 };
     title = "AI Interviewer";
     text = "Tap the Chat icon to practice interviewing.";
     bubblePos = { bottom: 120, marginLeft: 50 };
-  } else if (tutorialStep === 10) {
-    // Interview Expl (Was 6)
+  } else if (tutorialStep === 8) {
+    // Interview Expl (Was 10)
     title = "Interview Practice";
     text = "Get real-time feedback on your answers.";
     bubblePos = { top: 200, alignSelf: 'center' };
-  } else if (tutorialStep === 11) {
-    // Export (Was 7)
+  } else if (tutorialStep === 9) {
+    // Export (Was 11)
     const expX = navStartX + 204 - 25;
     target = { x: expX, y: navY - 5, w: 50, h: 50 };
     title = "Resume & Brag Sheet";
     text = "Tap the Download icon to generate documents.";
     bubblePos = { bottom: 120, right: 20 };
-  } else if (tutorialStep === 12) {
-    // Export Expl (Was 8)
+  } else if (tutorialStep === 10) {
+    // Export Expl (Was 12)
     title = "Export Tools";
     text = "Generate a formatted Resume or Brag Sheet instantly.";
     bubblePos = { top: 200, alignSelf: 'center' };
   }
 
-  const isBeforeInteraction = [1, 3, 5, 7, 9, 11].includes(tutorialStep);
+  const isBeforeInteraction = [1, 3, 5, 7, 9].includes(tutorialStep);
+
 
 
   // Explicit Navigation Handler to ensure step advances
@@ -2100,8 +2126,9 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
       setView('profile');
       setTutorialStep(2);
     } else if (tutorialStep === 3) {
-      // Activities Add -> Explain
-      // We don't nav to editor, just advance to explanation
+      // Activities Add -> Editor
+      // Trigger the actual Add Activity flow
+      handleNewActivity?.();
       setTutorialStep(4);
     } else if (tutorialStep === 5) {
       // Projects Add -> Explain
