@@ -1,0 +1,42 @@
+● Validation Warning:
+
+  Unknown option "watcher.unstable_lazySha1" with value true was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+● Validation Warning:
+
+  Unknown option "watcher.unstable_autoSaveCache" with value {"debounceMs": 5000, "enabled": true} was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+info Welcome to React Native v0.75
+info Starting dev server on port 8081...
+
+                        ▒▒▓▓▓▓▒▒
+                     ▒▓▓▓▒▒░░▒▒▓▓▓▒
+                  ▒▓▓▓▓░░░▒▒▒▒░░░▓▓▓▓▒
+                 ▓▓▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▓▓
+                 ▓▓░░░░░▒▓▓▓▓▓▓▒░░░░░▓▓
+                 ▓▓░░▓▓▒░░░▒▒░░░▒▓▒░░▓▓
+                 ▓▓░░▓▓▓▓▓▒▒▒▒▓▓▓▓▒░░▓▓
+                 ▓▓░░▓▓▓▓▓▓▓▓▓▓▓▓▓▒░░▓▓
+                 ▓▓▒░░▒▒▓▓▓▓▓▓▓▓▒░░░▒▓▓
+                  ▒▓▓▓▒░░░▒▓▓▒░░░▒▓▓▓▒
+                     ▒▓▓▓▒░░░░▒▓▓▓▒
+                        ▒▒▓▓▓▓▒▒
+
+
+                Welcome to Metro v0.80.12
+              Fast - Scalable - Integrated
+
+
+info React Native v0.84.0 is now available (your project is running on v0.75.4).
+info Changelog: https://github.com/facebook/react-native/releases/tag/v0.84.0
+info Diff: https://react-native-community.github.io/upgrade-helper/?from=0.75.4&to=0.84.0
+info For more info, check out "https://reactnative.dev/docs/upgrading?os=macos".
+info Dev server ready
+
+i - run on iOS
+a - run on Android
+d - open Dev Menu
+r - reload app
+

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, ScrollView, TouchableOpacity,
-  TextInput, Alert, Dimensions, ActivityIndicator, Share, Modal
+  TextInput, Alert, Dimensions, ActivityIndicator, Share, Modal, Animated
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -233,20 +233,18 @@ const InterviewSection = ({ profile, activities, onActiveChange, onBack }: any) 
 
   const scrollViewRef = React.useRef<ScrollView>(null);
 
-  // Check device capability on mount
+  // Check device capability on mount - REMOVED strictly blocking check to allow tutorial flow
+  /*
   useEffect(() => {
     const checkCapability = async () => {
       const hasAI = await hasFoundationModelsSupport();
       if (!hasAI) {
-        Alert.alert(
-          'Feature Unavailable',
-          'Interview feature is only available for devices iPhone 15 Pro and above.',
-          [{ text: 'OK', onPress: () => onBack() }]
-        );
+        // Alert removed to allow UI access for tutorial
       }
     };
     checkCapability();
   }, []);
+  */
 
   // Auto-start interview on first mount (if device is compatible)
   useEffect(() => {
@@ -479,54 +477,21 @@ export default function App() {
     checkTutorial();
   }, []);
 
-  // Tutorial Logic: Watch for view changes to advance steps
+  // Tutorial Logic: Watch for view changes to advance steps - REMOVED to rely on explicit Overlay interactions
+  // This prevents race conditions where the view updates before the step or vice versa
+  /*
   useEffect(() => {
     if (!showTutorial) return;
-
-    // Step 1: User navigates to 'profile' -> Advance to Step 2 (Explain Profile)
-    if (tutorialStep === 1 && view === 'profile') {
-      setTutorialStep(2);
-    }
-
-    // Step 2: User navigates back to 'dashboard' -> Advance to Step 3 (Guide to Activities)
-    if (tutorialStep === 2 && view === 'dashboard') {
-      setTutorialStep(3);
-    }
-
-    // Step 3: User navigates to 'activities' -> Advance to Step 4 (Explain Activities)
-    if (tutorialStep === 3 && view === 'activities') {
-      setTutorialStep(4);
-    }
-
-    // Step 4: User navigates to 'colleges' -> Advance to Step 5 (Guide to Colleges)
-    if (tutorialStep === 4 && view === 'colleges') {
-      setTutorialStep(5); // This skips the "Guide" step if they are already there, but Step 5 IS the guide?
-      // Wait, logic:
-      // Step 3: Point to Activities.
-      // Step 4: Explain Activities. (User must click Next to go to 5).
-      // Step 5: Point to Colleges.
-      // Step 6: Explain Colleges.
-    }
-
-    // Correction: My logic below handles the "Next" click to set the *Pointer* step.
-    // The Effect handles the *Arrival* step.
-
-    if (tutorialStep === 5 && view === 'colleges') {
-      setTutorialStep(6);
-    }
-
-    // Step 7: User navigates to 'interview' -> Advance to Step 8 (Explain Interview)
-    if (tutorialStep === 7 && (view === 'interview_start' || view === 'interview_chat')) {
-      setTutorialStep(8);
-    }
-
+    // Logic moved to TutorialOverlay handleInteraction
   }, [view, tutorialStep, showTutorial]);
+  */
+
+  // Tutorial Logic handled by Overlay mostly now
 
   const handleTutorialNext = async () => {
-    if (tutorialStep === 0) setTutorialStep(1); // Welcome -> Point to Profile
-    else if (tutorialStep === 4) setTutorialStep(5); // Done with Activities -> Point to Colleges
-    else if (tutorialStep === 6) setTutorialStep(7); // Done with Colleges -> Point to Interview
-    else if (tutorialStep === 8) {
+    if (tutorialStep < 12) {
+      setTutorialStep(tutorialStep + 1);
+    } else {
       await db.setHasSeenTutorial(true);
       setShowTutorial(false);
     }
@@ -536,6 +501,9 @@ export default function App() {
     await db.setHasSeenTutorial(true);
     setShowTutorial(false);
   };
+
+  // ... (State definitions remain) ...
+
 
   // 1. ALL HOOKS DEFINED UNCONDITIONALLY AT THE TOP
   const [view, setView] = useState('dashboard');
@@ -2011,8 +1979,22 @@ export default function App() {
 
 
 
-const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTutorialNext, handleTutorialSkip, view, setView }: any) => {
+const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTutorialNext, handleTutorialSkip, view, setView, foundationSupported }: any) => {
   const insets = useSafeAreaInsets();
+  // Animation State
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (showTutorial) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true })
+        ])
+      ).start();
+    }
+  }, [showTutorial]);
+
   if (!showTutorial) return null;
 
   // --- COORDINATE CALCULATIONS ---
@@ -2032,71 +2014,169 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
   let bubblePos: any = {};
   let text = "";
   let title = "";
+  let showSkip = true;
 
   if (tutorialStep === 0) {
     // Welcome Modal
+    showSkip = false;
   } else if (tutorialStep === 1) {
-    target = { x: width - 80, y: safeTop + 10, w: 60, h: 40 };
+    // Profile Button (Top Right)
+    const btnWidth = 100;
+    target = { x: width - btnWidth - 20, y: safeTop + 10, w: btnWidth, h: 40 };
     title = "Your Profile";
     text = "Tap here to edit your GPA, Test Scores, and Major.";
-    bubblePos = { top: target.y + 60, right: 20 };
+    // MOVE HIGHER UP as requested
+    bubblePos = { top: target.y + 50, right: 20 };
   } else if (tutorialStep === 2) {
     title = "Your Profile";
     text = "Enter your stats here for accurate AI analysis.";
-    bubblePos = { bottom: 120, alignSelf: 'center' };
+    bubblePos = { top: 180, alignSelf: 'center', marginHorizontal: 20 };
   } else if (tutorialStep === 3) {
-    const homeX = navStartX + 36 - 20;
-    target = { x: homeX, y: navY, w: 40, h: 40 };
-    title = "Dashboard";
-    text = "Scroll down on the Dashboard to add your Activities.";
-    bubblePos = { bottom: 100, left: 20 };
+    // NEW: Add Activity Spotlight (Approx Loc: Right side, ~400 down)
+    // We target the "Add Activity" button area generally
+    target = { x: width - 130, y: safeTop + 330, w: 110, h: 40 };
+    title = "Add Activities";
+    text = "Tap 'Add Activity' to build your extracurricular profile.";
+    bubblePos = { top: target.y + 50, left: 20 };
   } else if (tutorialStep === 4) {
-    title = "Extracurriculars";
-    text = "Add activities to get a Tier Rating (1-10) and impact analysis.";
-    bubblePos = { top: 150, alignSelf: 'center' };
+    title = "Track Your Impact";
+    text = "We'll analyze your activities to give you a Tier Rating (1-10).";
+    bubblePos = { top: 300, alignSelf: 'center' };
   } else if (tutorialStep === 5) {
-    const schoolX = navStartX + 92 - 20;
-    target = { x: schoolX, y: navY, w: 40, h: 40 };
-    title = "College List";
-    text = "Tap here to search colleges and see your admission chances.";
-    bubblePos = { bottom: 100, alignSelf: 'center' };
+    // NEW: Add Project Spotlight (Approx Loc: Right side, ~470 down)
+    target = { x: width - 130, y: safeTop + 400, w: 110, h: 40 };
+    title = "Showcase Projects";
+    text = "Built an app or started a business? Add it here.";
+    bubblePos = { top: target.y + 50, left: 20 };
   } else if (tutorialStep === 6) {
+    title = "Project Portfolio";
+    text = "Detailed projects help you stand out to admissions officers.";
+    bubblePos = { top: 350, alignSelf: 'center' };
+  } else if (tutorialStep === 7) {
+    // Colleges (Was 3)
+    const schoolX = navStartX + 92 - 25;
+    target = { x: schoolX, y: navY - 5, w: 50, h: 50 };
+    title = "College List";
+    text = "Tap the School icon to search colleges.";
+    bubblePos = { bottom: 120, alignSelf: 'center' };
+  } else if (tutorialStep === 8) {
+    // Colleges Expl (Was 4)
     title = "College Chances";
     text = "We compare your profile to admitted student data.";
-    bubblePos = { top: 150, alignSelf: 'center' };
-  } else if (tutorialStep === 7) {
-    const intX = navStartX + 148 - 20;
-    target = { x: intX, y: navY, w: 40, h: 40 };
+    bubblePos = { top: 200, alignSelf: 'center' };
+  } else if (tutorialStep === 9) {
+    // Interview (Was 5)
+    const intX = navStartX + 148 - 25;
+    target = { x: intX, y: navY - 5, w: 50, h: 50 };
     title = "AI Interviewer";
-    text = "Tap here to practice with our AI coach.";
-    bubblePos = { bottom: 100, marginLeft: 50 };
-  } else if (tutorialStep === 8) {
+    text = "Tap the Chat icon to practice interviewing.";
+    bubblePos = { bottom: 120, marginLeft: 50 };
+  } else if (tutorialStep === 10) {
+    // Interview Expl (Was 6)
     title = "Interview Practice";
     text = "Get real-time feedback on your answers.";
-    bubblePos = { top: 150, alignSelf: 'center' };
+    bubblePos = { top: 200, alignSelf: 'center' };
+  } else if (tutorialStep === 11) {
+    // Export (Was 7)
+    const expX = navStartX + 204 - 25;
+    target = { x: expX, y: navY - 5, w: 50, h: 50 };
+    title = "Resume & Brag Sheet";
+    text = "Tap the Download icon to generate documents.";
+    bubblePos = { bottom: 120, right: 20 };
+  } else if (tutorialStep === 12) {
+    // Export Expl (Was 8)
+    title = "Export Tools";
+    text = "Generate a formatted Resume or Brag Sheet instantly.";
+    bubblePos = { top: 200, alignSelf: 'center' };
   }
 
-  const isBeforeInteraction = [1, 3, 5, 7].includes(tutorialStep);
+  const isBeforeInteraction = [1, 3, 5, 7, 9, 11].includes(tutorialStep);
+
+
+  // Explicit Navigation Handler to ensure step advances
+  const handleInteraction = () => {
+    if (tutorialStep === 1) {
+      // Profile
+      setView('profile');
+      setTutorialStep(2);
+    } else if (tutorialStep === 3) {
+      // Activities Add -> Explain
+      // We don't nav to editor, just advance to explanation
+      setTutorialStep(4);
+    } else if (tutorialStep === 5) {
+      // Projects Add -> Explain
+      setTutorialStep(6);
+    } else if (tutorialStep === 7) {
+      // Colleges (Was 3)
+      setView('colleges');
+      setTutorialStep(8);
+    } else if (tutorialStep === 9) {
+      // Interview (Was 5)
+      setView('interview');
+      setTutorialStep(10);
+    } else if (tutorialStep === 11) {
+      // Export (Was 7)
+      setView('export');
+      setTutorialStep(12);
+    }
+  };
+
+  // Custom "Next" logic for dynamic flow
+  const handleNextStep = async () => {
+    // Navigating AWAY from Profile if needed
+    if (tutorialStep === 2) {
+      // Must set view to dashboard FIRST to ensure BottomNav is rendered
+      setView('dashboard');
+      // Small delay to ensure render cycle completes and Nav is visible before spotlight moves
+      setTimeout(() => setTutorialStep(3), 150);
+    }
+    // New Steps 3-6 flow naturally to next
+    else if (tutorialStep === 8) {
+      // From Colleges Expl to Interview Point
+      setTutorialStep(9);
+    }
+    else if (tutorialStep === 10) {
+      // Exit Interview view to ensure Bottom Nav is clear (chat input might cover it)
+      setView('dashboard');
+      setTimeout(() => setTutorialStep(11), 150);
+    }
+    else if (tutorialStep === 12) {
+      handleTutorialNext(); // Ends tutorial
+    }
+    else {
+      // Fallback
+      handleTutorialNext();
+    }
+  };
+
 
   return (
     <View style={s.tutorialOverlay} pointerEvents="box-none">
       {/* --- MASK LAYERS --- */}
       {isBeforeInteraction && (
         <>
+          {/* Top Mask */}
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: target.y, backgroundColor: 'rgba(0,0,0,0.7)' }} />
+          {/* Bottom Mask */}
           <View style={{ position: 'absolute', top: target.y + target.h, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)' }} />
+          {/* Left Mask */}
           <View style={{ position: 'absolute', top: target.y, left: 0, width: target.x, height: target.h, backgroundColor: 'rgba(0,0,0,0.7)' }} />
+          {/* Right Mask */}
           <View style={{ position: 'absolute', top: target.y, left: target.x + target.w, right: 0, height: target.h, backgroundColor: 'rgba(0,0,0,0.7)' }} />
 
-          {/* Highlight Glow Border */}
-          <View style={{
+          {/* Highlight Glow Border with Pulse - NOW CLICKABLE */}
+          <Animated.View style={{
             position: 'absolute',
             top: target.y - 4, left: target.x - 4,
             width: target.w + 8, height: target.h + 8,
             borderRadius: 12,
-            borderWidth: 2, borderColor: '#60a5fa',
-            shadowColor: '#60a5fa', shadowOpacity: 0.8, shadowRadius: 10, elevation: 10
-          }} pointerEvents="none" />
+            borderWidth: 3, borderColor: '#60a5fa',
+            shadowColor: '#60a5fa', shadowOpacity: 0.8, shadowRadius: 10, elevation: 10,
+            transform: [{ scale: pulseAnim }],
+            zIndex: 99999 // Ensure it catches taps
+          }}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={handleInteraction} />
+          </Animated.View>
         </>
       )}
 
@@ -2117,25 +2197,21 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
           {!isBeforeInteraction && <Text style={s.tutorialTitle}>{title}</Text>}
           <Text style={isBeforeInteraction ? s.bubbleText : s.tutorialText}>{text}</Text>
 
-          {!isBeforeInteraction && (
-            <TouchableOpacity style={s.tutorialNextBtn} onPress={handleTutorialNext}>
-              <Text style={s.tutorialNextTxt}>{tutorialStep === 8 ? "Finish" : "Next"}</Text>
-            </TouchableOpacity>
-          )}
+          <View style={s.tutorialBtnRow}>
+            {/* Exit Button INSIDE Bubbles */}
+            {showSkip && (
+              <TouchableOpacity onPress={handleTutorialSkip} style={{ marginRight: 20 }}>
+                <Text style={isBeforeInteraction ? { color: 'rgba(255,255,255,0.7)', fontSize: 12 } : s.tutorialSkip}>Exit Tutorial</Text>
+              </TouchableOpacity>
+            )}
 
-          {(tutorialStep === 2 || tutorialStep === 4 || tutorialStep === 6) && (
-            <TouchableOpacity style={[s.tutorialNextBtn, { marginTop: 10 }]} onPress={() => setTutorialStep(tutorialStep + 1)}>
-              <Text style={s.tutorialNextTxt}>Next</Text>
-            </TouchableOpacity>
-          )}
+            {!isBeforeInteraction && (
+              <TouchableOpacity style={s.tutorialNextBtn} onPress={handleNextStep}>
+                <Text style={s.tutorialNextTxt}>{tutorialStep === 12 ? "Finish" : "Next"}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      )}
-
-      {/* Skip */}
-      {tutorialStep > 0 && (
-        <TouchableOpacity style={{ position: 'absolute', top: safeTop + 10, left: 20, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 }} onPress={handleTutorialSkip}>
-          <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>Exit</Text>
-        </TouchableOpacity>
       )}
     </View>
   );
