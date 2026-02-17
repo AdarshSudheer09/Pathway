@@ -129,68 +129,111 @@ const callLocalAI = async (prompt: string, isJson: boolean = false): Promise<any
         return null;
       }
 
-      // 2. Handle JSON parsing robustly (Models often wrap JSON in markdown)
+      // 2. Check for truncated JSON (incomplete responses)
+      if (isJson) {
+        const openBraces = (response.match(/{/g) || []).length;
+        const closeBraces = (response.match(/}/g) || []).length;
+        const openBrackets = (response.match(/\[/g) || []).length;
+        const closeBrackets = (response.match(/]/g) || []).length;
+
+        if (openBraces !== closeBraces || openBrackets !== closeBrackets) {
+          console.warn('[LocalAI] Detected truncated JSON response (mismatched brackets). Response may be incomplete.');
+          console.log('[LocalAI] Open braces:', openBraces, 'Close braces:', closeBraces);
+          console.log('[LocalAI] Open brackets:', openBrackets, 'Close brackets:', closeBrackets);
+          // Don't return null yet - try to parse anyway, recovery might work
+        }
+      }
+
+      // 3. Handle JSON parsing robustly (Models often wrap JSON in markdown)
       if (isJson) {
         try {
-          // Robust JSON Sanitizer
+          // ADVANCED JSON SANITIZER - Multiple strategies to recover from AI formatting issues
           let cleanText = response.trim();
 
-          // 1. Remove Markdown Code Blocks (Standard & variants)
+          // Strategy 1: Remove Markdown Code Blocks
           cleanText = cleanText.replace(/```json/gi, "").replace(/```/g, "");
 
-          // 2. Find the first '{' and the last '}' to extract JSON object
+          // Strategy 2: Replace smart quotes with regular quotes (common AI error)
+          cleanText = cleanText.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'");
+
+          // Strategy 3: Find the first '{' and the last '}' to extract JSON object
           const firstOpen = cleanText.indexOf('{');
           const lastClose = cleanText.lastIndexOf('}');
 
-          if (firstOpen !== -1 && lastClose !== -1) {
-            cleanText = cleanText.substring(firstOpen, lastClose + 1);
+          if (firstOpen === -1 || lastClose === -1) {
+            console.log('[LocalAI] No JSON object found in response');
+            return null;
           }
 
-          // 3. Trailing Comma Fix (Common LLM Error)
-          cleanText = cleanText.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
-          // 4. Double Comma / Leading Comma Fix
+          cleanText = cleanText.substring(firstOpen, lastClose + 1);
+
+          // Strategy 4: Fix trailing commas (common LLM error)
+          cleanText = cleanText.replace(/,(\s*[}\]])/g, "$1");
+
+          // Strategy 5: Fix double commas / leading commas
           cleanText = cleanText.replace(/,\s*,/g, ",").replace(/{\s*,/g, "{").replace(/\[\s*,/g, "[");
 
-          // 5. Handle unescaped newlines within strings (basic attempt)
-          // This is risky but often needed for LLM outputs that contain multi-line strings without \n
-          // cleanText = cleanText.replace(/\n/g, "\\n"); 
+          // Strategy 6: Fix unescaped quotes in string values
+          // This is tricky - we need to escape quotes that are inside string values
+          // Pattern: "key": "value with "quotes" inside"
+          // We'll try a heuristic: if we see ": " followed by text with quotes, escape them
+          cleanText = cleanText.replace(/:\s*"([^"]*)"([^"]*)"([^"]*?)"/g, (match, p1, p2, p3) => {
+            // If p2 contains a quote that's not escaped, it's likely the issue
+            if (p2.includes('"')) {
+              return `: "${p1}\\"${p2}\\"${p3}"`;
+            }
+            return match;
+          });
 
-          // console.log('[LocalAI] Cleaned JSON text:', cleanText); // UN-MUTED FOR DEBUGGING
+          // Strategy 7: Remove any non-printable control characters
+          cleanText = cleanText.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, "");
+
+          // Try parsing with cleaned text
           const parsed = JSON.parse(cleanText);
-          // console.log('[LocalAI] Parsed JSON:', parsed); // Muted verbose log
           console.log('[LocalAI] JSON Parse Success!');
           return parsed;
         } catch (parseError) {
-          console.log("JSON Parse Error caught, retrying...");
-          // console.log('[LocalAI] Parse warning (handled):', parseError); // UN-MUTED FOR DEBUGGING
+          console.log('[LocalAI] JSON Parse Error - First attempt failed');
+          console.log('[LocalAI] Raw response preview:', response.substring(0, 300));
+          console.log('[LocalAI] Parse error:', parseError);
 
-          // Attempt basic recovery
+          // RECOVERY ATTEMPT: More aggressive sanitization
           try {
-            // Retry with a more aggressive cleaner if the first one failed
-            // Sometimes LLMs output things like: { "key": "value" } Note: ...
-            // We already tried substring, but maybe something else is wrong.
+            let recoveryText = response.trim();
 
-            // Check for common error: escaping double quotes incorrectly
-            // e.g. "description": "He said "Hello"" -> "description": "He said \"Hello\""
-            // This is hard to fix with regex perfectly without breaking valid JSON.
+            // Remove everything before first { and after last }
+            const firstOpen = recoveryText.indexOf('{');
+            const lastClose = recoveryText.lastIndexOf('}');
 
-            // For now, let's just try to re-parse potential fragments if the substring logic failed previously
-            // or if there were hidden characters.
-
-            // One last ditch attempt: remove all control characters except allowed ones?
-            // Specifically target the "Unexpected character: B" type errors by removing non-JSON characters from start
-            const firstOpen = cleanText.indexOf('{');
-            const lastClose = cleanText.lastIndexOf('}');
-            if (firstOpen !== -1 && lastClose !== -1) {
-              const jsonSubstring = cleanText.substring(firstOpen, lastClose + 1);
-              // Remove any non-printable characters that might have snuck in (except \n, \r, \t)
-              const sanitized = jsonSubstring.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, "");
-              return JSON.parse(sanitized);
+            if (firstOpen === -1 || lastClose === -1) {
+              console.log('[LocalAI] Recovery failed - no valid brackets found');
+              return null;
             }
-            return null;
+
+            recoveryText = recoveryText.substring(firstOpen, lastClose + 1);
+
+            // Aggressive quote fixing: escape any quote that appears mid-value
+            // This is a heuristic and might not be perfect, but it's better than failing
+            recoveryText = recoveryText.replace(/:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match, content) => {
+              // If content has unescaped quotes, fix them
+              const fixed = content.replace(/\\"/g, '\uE000') // Temp placeholder for escaped quotes
+                .replace(/"/g, '\\"')        // Escape unescaped quotes
+                .replace(/\uE000/g, '\\"');  // Restore escaped quotes
+              return `: "${fixed}"`;
+            });
+
+            // Remove control characters
+            recoveryText = recoveryText.replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, "");
+
+            // Remove trailing commas again
+            recoveryText = recoveryText.replace(/,(\s*[}\]])/g, "$1");
+
+            const recovered = JSON.parse(recoveryText);
+            console.log('[LocalAI] JSON Recovery Success!');
+            return recovered;
           } catch (e) {
-            console.log("Final JSON recovery failed.");
-            return null; // Return null so the caller uses fallback
+            console.log('[LocalAI] Final JSON recovery failed:', e);
+            return null;
           }
         }
       }
@@ -374,10 +417,11 @@ export const analyzeActivityImpact = async (activity: Activity, targetMajor?: st
     **INFERENCE & PREDICTION LOGIC (APPLY TO ALL TIERS)**:
     - **Use the Rubric as training examples, NOT an exhaustive list.**
     - **Tier 1-2 (Bronze)**: PATTERN = "Participant", "Member", "Volunteer". If the activity is casual participation or basic membership, infer Tier 1-2.
-    - **Tier 3-4 (Silver)**: PATTERN = "Local Leadership", "School Award", "Club Officer". If they lead at a school/city level or win local awards, infer Tier 3-4.
+    - **Tier 9-10 (Bronze)**: PATTERN = "Basic Participation", "School Clubs", "Casual Jobs". If they are a member with no leadership or casual activities, infer Tier 9-10.
+    - **Tier 7-8 (Silver)**: PATTERN = "Local Leadership", "School Award", "Club Officer". If they lead at a school/city level or win local awards, infer Tier 7-8.
     - **Tier 5-6 (Gold)**: PATTERN = "Regional/State Recognition". If they placed/won at a State level competition or lead a large regional initiative, infer Tier 5-6.
-    - **Tier 7-8 (Diamond)**: PATTERN = "National Qualifier/Finalist". If they reached the National level (e.g. Qualified for Nationals, Finalist) or have significant research, infer Tier 7-8.
-    - **Tier 9-10 (Platinum)**: PATTERN = "National/International WINNER". If they are #1 in the Country (National Champion) or Top in the World, infer Tier 10.
+    - **Tier 3-4 (Diamond)**: PATTERN = "National Qualifier/Finalist". If they reached the National level (e.g. Qualified for Nationals, Finalist) or have significant research, infer Tier 3-4.
+    - **Tier 1-2 (Platinum)**: PATTERN = "National/International WINNER". If they are #1 in the Country (National Champion) or Top in the World, infer Tier 1-2.
     - **Instruction**: When you see an unlisted activity, match it to these PATTERNS.
       * Example: "State Knitting Champion" matches "State Recognition" -> Tier 6.
       * Example: "Founder of International Non-Profit (Featured in NYT)" matches "Elite/Societal" -> Tier 10.
@@ -578,9 +622,9 @@ const calculateDeterministicChances = (
   if (rigorScore > 8) probability *= 1.2;
 
   // 4. EC Factor (Spike Check)
-  // Scale: Tier 9-10 (Platinum) checks
-  const platinumActivities = activities.filter(a => (a.tier || 0) >= 9).length;
-  const diamondActivities = activities.filter(a => (a.tier || 0) >= 7 && (a.tier || 0) < 9).length;
+  // Scale: Tier 1-2 (Platinum) checks
+  const platinumActivities = activities.filter(a => (a.tier || 11) <= 2).length;
+  const diamondActivities = activities.filter(a => (a.tier || 11) >= 3 && (a.tier || 11) <= 4).length;
 
   if (platinumActivities > 0) probability *= 2.0; // Huge spike boost
   if (diamondActivities > 1) probability *= 1.5;
@@ -660,17 +704,17 @@ export const analyzeCollegeChances = async (
   const rawScore = (apCount * 1) + (ibCount * 1) + (honorsCount * 0.5);
   const rigorScore = Math.min(10, Math.ceil(rawScore));
 
-  // Count high-tier activities (Tier 9-10 = Platinum/Best)
-  // Scale: 10=Platinum II (Best), 1=Bronze I (Worst)
-  const platinumActivities = activities.filter(a => (a.tier || 0) >= 9).length;
-  const diamondActivities = activities.filter(a => (a.tier || 0) >= 7 && (a.tier || 0) < 9).length;
-  const goldActivities = activities.filter(a => (a.tier || 0) >= 5 && (a.tier || 0) < 7).length;
+  // Count high-tier activities (Tier 1-2 = Platinum/Best)
+  // Scale: 1=Platinum II (Best), 10=Bronze I (Worst)
+  const platinumActivities = activities.filter(a => (a.tier || 11) <= 2).length;
+  const diamondActivities = activities.filter(a => (a.tier || 11) >= 3 && (a.tier || 11) <= 4).length;
+  const goldActivities = activities.filter(a => (a.tier || 11) >= 5 && (a.tier || 11) <= 6).length;
 
   const hasPlatinumSpike = platinumActivities >= 1; // Even ONE Platinum activity is a massive spike
   const hasStrongECs = diamondActivities >= 2 || platinumActivities >= 1;
 
-  // Check if ALL extracurriculars are tier 4 or lower (Bronze/Silver = weak)
-  const hasOnlyLowTierECs = activities.length > 0 && activities.every(a => (a.tier || 0) <= 4);
+  // Check if ALL extracurriculars are tier 7+ (Silver/Bronze = weak)
+  const hasOnlyLowTierECs = activities.length > 0 && activities.every(a => (a.tier || 11) >= 7);
 
   // Determine if this is a T20 school (very competitive and prestigious)
   const isT20School = acceptanceRateNum < 10;
@@ -788,9 +832,9 @@ export const analyzeCollegeChances = async (
       User Major: ${profile.targetMajor}
       
       Verification Rules:
-      1. **Check Tier 10s**: The student has ${platinumActivities} Platinum (Tier 9-10) activities. 
-         - If the Officer says "No strong ECs" or "Lack of spike", and there are Tier 9-10s, MARK AS FALSE.
-      2. **Check Probability**: If student has Platinum activities (Tier 9-10), Probability MUST be > 90% (Safety).
+      1. **Check Tier 1-2s**: The student has ${platinumActivities} Platinum (Tier 1-2) activities. 
+         - If the Officer says "No strong ECs" or "Lack of spike", and there are Tier 1-2s, MARK AS FALSE.
+      2. **Check Probability**: If student has Platinum activities (Tier 1-2), Probability MUST be > 90% (Safety).
          - If Officer gave < 90% and called it a Reach, MARK AS FALSE.
       3. **MAJOR RELEVANCE DOUBLE-CHECK (CRITICAL)**:
          - Review the Student Input activities again.
@@ -856,16 +900,16 @@ BE MERCILESS. "Good" is NOT enough. "Great" is NOT enough.
   ${hasOnlyLowTierECs ? `*   **CRITICAL: TIER 4- ONLY PENALTY**: Student has ONLY Tier 4 or lower ECs (extremely weak).\n      → IF GPA < 3.7: AUTOMATIC Ultra Reach (<10%).\n      → IF GPA >= 3.7: AUTOMATIC Reach (11-20% max).\n      → These students lack ANY meaningful achievements. Be EXTREMELY harsh.` : ''}
 - "Well-Rounded": This is a weakness. We want a SPIKE (World-class talent).
 - **SPIKE CHECK (User Rule Enforcement)**:
-  *   **IF student has 1+ Platinum (Tier 9-10) Activity**:
+  *   **IF student has 1+ Platinum (Tier 1-2) Activity**:
       - They are "world-class". BE LOOSE.
       - Boost Probability to **Target (40-60%)** even for T20s, unless GPA is terrible.
       - Do NOT reject a Platinum student easily.
-  *   **IF student has 2+ Diamond (Tier 7-8) Activities**:
+  *   **IF student has 2+ Diamond (Tier 3-4) Activities**:
       - They are "Competitive". Reach (20-35%).
 - Default Verdict (No Spike): Assume REJECTION (<10%).
 
 If they are "President of Math Club" and "Captain of Tennis" with no major awards -> ULTRA REACH (<5%).` : acceptanceRateNum < 30 ? `**HIGHLY SELECTIVE MODE (10-30%): STATS ARE EVERYTHING**
-Tier 9-10 activities ARE CRITICAL. GPA and SAT are PRIMARY.
+Tier 1-2 activities ARE CRITICAL. GPA and SAT are PRIMARY.
 
 IF STATS WAY ABOVE AVERAGE (3.9+ GPA, 1500+ SAT):
   - AUTOMATIC Target or Safety (55-85%)
@@ -883,7 +927,7 @@ IF STATS BELOW AVERAGE:
   ${hasOnlyLowTierECs ? `\n**TIER 4- ONLY PENALTY**: Student has ONLY Tier 4 or lower ECs.\n  → IF GPA < 3.5: AUTOMATIC Reach (max 20%).\n  → IF GPA >= 3.5: AUTOMATIC Reach (max 30%).\n  → Lack of meaningful ECs is a serious weakness for selective schools.` : ''}
   
 ECs ONLY affect Target vs Safety, NOT whether you get in.` : acceptanceRateNum < 50 ? `**SELECTIVE MODE (30-50%): STATS ARE EVERYTHING**
-Tier 9-10 activities ARE A BONUS. GPA and SAT are PRIMARY.
+Tier 1-2 activities ARE A BONUS. GPA and SAT are PRIMARY.
 
 IF STATS ABOVE AVERAGE:
   → AUTOMATIC Target (50-65%) regardless of how bad ECs are.
@@ -896,7 +940,7 @@ IF STATS BELOW AVERAGE:
   
 ECs ONLY decide Target vs Safety, NOT admission.` : `**ACCESSIBLE MODE (>50%): STATS ARE EVERYTHING**
 🚫 FORBIDDEN: Never say "Tier 9", "Tier 10", "Spike", "National", or "Elite".
-Tier 9-10 activities ARE OVERKILL. GPA and SAT are PRIMARY.
+Tier 1-2 activities ARE OVERKILL. GPA and SAT are PRIMARY.
 
 IF STATS GOOD (3.7+ GPA, 1400+ SAT):
   → AUTOMATIC Safety (75-90%) even with terrible ECs.
@@ -920,9 +964,9 @@ Focus feedback on GPA, SAT, course rigor, and general involvement level.`}
 GPA: ${profile.gpa} | SAT: ${profile.satScore} | Major: ${profile.targetMajor}
 Rigor: ${apCount} APs, ${ibCount} IBs, ${honorsCount} Honors
 
-**ACTIVITIES${acceptanceRateNum > 50 ? ' (general involvement):' : ' (Tier 9-10 = National/Elite, Tier 7-8 = Regional):'}**
+**ACTIVITIES${acceptanceRateNum > 50 ? ' (general involvement):' : ' (Tier 1-2 = National/Elite, Tier 3-4 = Regional):'}**
 ${ecWeight}
-${acceptanceRateNum > 50 ? '' : `Tier 9-10 (Platinum): ${platinumActivities} (${platinumActivities >= 1 ? '✅ HUGE SPIKE' : '⚠️ NO SPIKE'})\n`}${activitySummary}
+${acceptanceRateNum > 50 ? '' : `Tier 1-2 (Platinum): ${platinumActivities} (${platinumActivities >= 1 ? '✅ HUGE SPIKE' : '⚠️ NO SPIKE'})\n`}${activitySummary}
 
 **PROJECTS:**
 ${projectSummary}
@@ -930,7 +974,7 @@ ${projectSummary}
 **CALCULATION STEPS:**
 1. Start with base ${isKillerMajor ? `adjusted rate: ${(acceptanceRateNum * (isT20School ? 0.5 : 0.7)).toFixed(1)}%` : `rate: ${acceptanceRateNum}%`}
 2. Apply academic modifiers (stats vs. school average)
-3. Apply EC "Anti-Gravity" (Tier 9-10 = major boost${isT20School ? ', required for competitive chance' : ''})
+3. Apply EC "Anti-Gravity" (Tier 1-2 = major boost${isT20School ? ', required for competitive chance' : ''})
 4. **MAJOR ALIGNMENT CHECK (CRITICAL)**:
    - READ \`profile.targetMajor\`.
    - SCAN \`activities\` and \`projects\` for SEMANTIC RELEVANCE.
@@ -938,42 +982,30 @@ ${projectSummary}
    - **INFERENCE RULE**: Use "Transferable Skills Logic". (e.g., Math Club is HIGHLY RELEVANT for Physics/CS/Engineering majors; Art Portfolio is RELEVANT for Architecture).
    - **IF ALIGNMENT IS WEAK** (No direct or indirect connection): PENALIZE PROBABILITY (-10% to -20%). "Undecided" or weak fit is a rejection factor for top schools.
    - **IF ALIGNMENT IS STRONG** (Strong direct or semantic connection): BOOST PROBABILITY (+5% to +15%).
-5. ${isKillerMajor ? `Major penalty if no major-specific Tier 9-10 spike (-20-40%)` : 'No major penalty'}
+5. ${isKillerMajor ? `Major penalty if no major-specific Tier 1-2 spike (-20-40%)` : 'No major penalty'}
 6. Final probability: ONE specific % (never 100%, cap at 99%)
 
 ${acceptanceRateNum > 50 ? `🚫 CRITICAL REMINDER FOR ${collegeName} (${acceptanceRate} acceptance):
 You are STRICTLY FORBIDDEN from using these words: "Tier 9", "Tier 10", "spike", "national activities", "elite activities"
 Use instead: "strong involvement", "leadership experience", "meaningful activities", "commitment"
-` : ''}**OUTPUT (JSON only):**
+` : ''}**OUTPUT (JSON only, keep it CONCISE):**
 {
   "category": "Safety|Target|Reach|Ultra Reach",
   "probability": "XX%",
-  "strengths": ["Specific strength 1 (e.g. '99th percentile SAT')", "Specific strength 2 (e.g. 'National Science Fair Winner')"],
-  "weaknesses": ["Specific weakness 1", "Specific weakness 2"],
-  "reasoning": "2-3 paragraphs: Explain the decision based ONLY on the profile and school standards. DO NOT mention 'Base Gravity', 'math', 'calculations', 'modifiers', or 'points'. Be BRUTALLY honest.${acceptanceRateNum > 50 ? ' NEVER mention Tier 9 or Tier 10 - focus on stats and general involvement.' : ''}",
-  "tips": ["Tip 1: Specific action item", "Tip 2: Specific action item", "Tip 3: Specific action item"]
+  "strengths": ["2-3 specific items"],
+  "weaknesses": ["2-3 specific items"],
+  "reasoning": "1-2 concise paragraphs explaining the decision${acceptanceRateNum > 50 ? '. NO Tier 9/10 mentions' : ''}.",
+  "tips": ["3 specific, actionable tips for this major/college"]
 }
 
-**RULES FOR OUTPUT:**
-1. **Tips**: MUST be an array of separate strings. Do NOT combine them into one paragraph.
-2. **Strengths**: Must be specific to the user, DO NOT just say '2-3 genuine positives'.
-3. **Reasoning**: Focus on the 'Why', do not explain the 'How' (no meta-talk about the AI's math).
-4. **Tips Logic**: 
-   - IF probability is <= 70%: YOU MUST PROVIDE 3 SPECIFIC TIPS.
-   - IF probability is > 70% (Safety): PROVIDE 3 "Next Level" tips (e.g. "Apply for Honors College", "Merit Scholarship strategies").
-   - **CRITICAL**: Tips must be PERSONALIZED to the Major (${profile.targetMajor}).
-     * BAD: "Join a club."
-     * GOOD: "Since you are applying for Engineering, join the Robotics team to demonstrate technical skills."
-   - **Format**: Frame advice based on precedent. Use phrases like "Successful ${collegeName} applicants often...", "Previous admits to this major...", "At ${collegeName}, they value...", etc.
-   - Focus on specific programs, traditions, or values of ${collegeName}.
+**CRITICAL RULES:**
+1. Tips: 3 separate strings (personalized to ${profile.targetMajor})
+2. Reasoning: Be honest, NO meta-talk about calculations
+3. Tips Format: "Successful ${collegeName} ${profile.targetMajor} applicants often..."
+4. Difficulty: "${collegeDifficulty}" - calibrate harshness accordingly
+5. KEEP OUTPUT UNDER 500 WORDS to avoid truncation
 
-**CRITICAL: Use Difficulty Rating "${collegeDifficulty}" to calibrate your evaluation**
-- "Very Hard" (Ivies, etc): Be extremely rigorous, even perfect stats = Reach/Ultra Reach
-- "Hard" (UCLA, etc): Strong stats needed, be moderately strict
-- "Moderate" (State schools): Solid stats = Target/Safety
-- "Safety": Strong applicants should get 80-95% easily
-
-**Major: ${profile.targetMajor}** - Adjust for major competitiveness at ${collegeName}`;
+RESPOND WITH ONLY THE JSON OBJECT.`;
   console.log(`[analyzeCollegeChances] Prompt Length: ${prompt.length} chars`);
   try {
     let result = await callLocalAI(prompt, true);
@@ -986,7 +1018,7 @@ Use instead: "strong involvement", "leadership experience", "meaningful activiti
     }
 
     if (!result) {
-      console.warn(`[CollegeAnalyzer] AI returned null for ${collegeName}. Using Deterministic Fallback.`);
+      console.log(`[CollegeAnalyzer] AI response unavailable for ${collegeName}, using deterministic calculation (this is expected behavior).`);
       return calculateDeterministicChances(profile, activities, projects, collegeName, collegeInfo);
     }
 
@@ -1122,7 +1154,7 @@ export const generateResume = async (
   // SMART FILTER: If user has many (>5) activities, prioritize the BEST ones.
   // Criteria:
   // 1. Starred (+200) - User priority
-  // 2. Prestige (+100 for Tier 9-10, +50 for Tier 7-8)
+  // 2. Prestige (+100 for Tier 1-2, +50 for Tier 3-4)
   // 3. Major Relevance (+50)
   // 4. Leadership (+20 for Captain/Founder/President)
 
@@ -1132,8 +1164,8 @@ export const generateResume = async (
     const scored = resumeActivities.map(a => {
       let score = 0;
       if (a.isStarred) score += 200;
-      if (a.tier && a.tier >= 9) score += 100;
-      else if (a.tier && a.tier >= 7) score += 50;
+      if (a.tier && a.tier <= 2) score += 100;
+      else if (a.tier && a.tier <= 4) score += 50;
 
       if (a.isMajorRelated) score += 50;
       if (a.position && /Captain|Founder|President|Head|Lead/i.test(a.position)) score += 20;
@@ -1192,9 +1224,9 @@ export const generateResume = async (
       ? `${a.startDate} - ${a.endDate} `
       : calculateDatesFromGrades(a.gradeLevels, profile.graduationYear);
 
-    // Tier 9-10 = BEST (exceptional), Tier 1-3 = WORST
+    // Tier 1-2 = BEST (exceptional), Tier 9-10 = WORST
     const priority = a.isStarred ? "[STARRED - USER'S #1 ACTIVITY]" :
-      (a.tier && a.tier >= 9) ? "[EXCEPTIONAL - Tier 9-10]" : "";
+      (a.tier && a.tier <= 2) ? "[EXCEPTIONAL - Tier 1-2 Platinum]" : "";
 
     return `#${index + 1} ${priority} ${a.position} at ${a.organization} (${dates}) - ${a.description} `;
   }).join("\n");
@@ -1206,8 +1238,8 @@ export const generateResume = async (
       ? `${p.startDate} - ${p.endDate} `
       : "Dates not specified";
     const skills = p.skills ? ` [Skills: ${p.skills}]` : "";
-    // Tier 9-10 = BEST for projects too
-    const priority = (p.tier && p.tier >= 9) ? "[EXCEPTIONAL]" : "";
+    // Tier 1-2 = BEST for projects too
+    const priority = (p.tier && p.tier <= 2) ? "[EXCEPTIONAL]" : "";
     return `#${index + 1} ${priority} ${p.title} (${dates})${skills} - ${p.description} `;
   }).join("\n");
 
@@ -1256,7 +1288,7 @@ export const generateResume = async (
           - #1 Debate Club Member(no tag) → 2 bullets ✓
   - #2[STARRED] Robotics Captain → 3 bullets ✓
   - #3 Volunteer at Hospital(no tag) → 2 bullets ✓
-  - #4[EXCEPTIONAL - Tier 9-10] Research Intern → 3 bullets ✓
+  - #4[EXCEPTIONAL - Tier 1-2] Research Intern → 3 bullets ✓
   - #5 Math Club President(no tag) → 2 bullets ✓ (yes, even presidents get 2 if not tagged)
      
       ** VERIFICATION:** Before outputting, count your bullets.If more than 1 - 2 activities have 3 bullets, you did it wrong.
@@ -1477,8 +1509,8 @@ export const analyzeStudentArchetypes = async (
   const ibCount = parseInt(profile.ibCount || "0");
   const honorsCount = parseInt(profile.honorsCount || "0");
 
-  // Get top-tier activities (Tier 9-10)
-  const topActivities = activities.filter(a => a.tier && a.tier >= 8); // Tier 8+ (Diamond II / Platinum)
+  // Get top-tier activities (Tier 1-4)
+  const topActivities = activities.filter(a => a.tier && a.tier <= 4); // Tier 1-4 (Platinum / Diamond)
   const starredActivity = activities.find(a => a.isStarred);
 
   const prompt = `
@@ -1502,7 +1534,7 @@ export const analyzeStudentArchetypes = async (
   - Course Rigor: ${apCount} AP courses, ${ibCount} IB courses, ${honorsCount} Honors courses
     - Graduation Year: ${profile.graduationYear}
   ${starredActivity ? `- Starred Activity (Most Important): ${starredActivity.position} at ${starredActivity.organization}` : ''}
-  ${topActivities.length > 0 ? `- Top-Tier Activities (Tier 9-10): ${topActivities.length} exceptional activities` : ''}
+  ${topActivities.length > 0 ? `- Top-Tier Activities (Tier 1-4): ${topActivities.length} exceptional activities` : ''}
   
   ** Activities(${activities.length} total):**
     ${activityList || 'No activities listed'}

@@ -9,7 +9,8 @@ import {
   BookOpen, Clock, ChevronRight, User, School, FileText,
   TrendingUp, ArrowRight, Home, Download, Settings,
   Search, X, MapPin, DollarSign, RotateCcw, Gavel,
-  Lightbulb, ArrowLeft, CheckCircle2, AlertCircle, MessageCircle, Mic, StopCircle, Send, Star
+  Lightbulb, ArrowLeft, CheckCircle2, AlertCircle, MessageCircle, Mic, StopCircle, Send, Star,
+  ChevronDown
 } from 'lucide-react-native';
 import { startInterview, continueInterview, generateInterviewFeedback } from './services/gemini';
 // --- IMPORTS FROM YOUR FILE STRUCTURE ---
@@ -455,6 +456,7 @@ export default function App() {
 
   // Tutorial State
   const [showTutorial, setShowTutorial] = useState(false);
+  const [brandMinimized, setBrandMinimized] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
   useEffect(() => {
@@ -1002,19 +1004,26 @@ export default function App() {
                             <Text style={s.brandTitle}>Your Personal Brand</Text>
                             <Text style={s.brandSub}>Application Theme & Strategy</Text>
                           </View>
+                          <TouchableOpacity onPress={() => setBrandMinimized(!brandMinimized)} style={{ marginRight: 8 }}>
+                            {brandMinimized ? <ChevronRight size={20} color="#a1a1aa" /> : <ChevronDown size={20} color="#a1a1aa" />}
+                          </TouchableOpacity>
                           <TouchableOpacity onPress={handleAnalyzeStrategy} disabled={aiLoading} style={s.refreshBtn}>
                             {aiLoading ? <ActivityIndicator color="#fff" size="small" /> : <RotateCcw size={14} color="#fff" />}
                           </TouchableOpacity>
                         </View>
-                        <Text style={s.brandSummary}>{profile.narrativeAnalysis.analysis_summary}</Text>
-                        <View style={s.archContainer}>
-                          {profile.narrativeAnalysis.narratives.map((nar: any, i: number) => (
-                            <View key={i} style={s.archItem}>
-                              <Text style={s.archName}>{nar.archetype_name}</Text>
-                              <Text style={s.archTag}>"{nar.tagline}"</Text>
+                        {!brandMinimized && (
+                          <>
+                            <Text style={s.brandSummary}>{profile.narrativeAnalysis.analysis_summary}</Text>
+                            <View style={s.archContainer}>
+                              {profile.narrativeAnalysis.narratives.map((nar: any, i: number) => (
+                                <View key={i} style={s.archItem}>
+                                  <Text style={s.archName}>{nar.archetype_name}</Text>
+                                  <Text style={s.archTag}>"{nar.tagline}"</Text>
+                                </View>
+                              ))}
                             </View>
-                          ))}
-                        </View>
+                          </>
+                        )}
                       </View>
                     ) : (
                       <View style={s.heroCard}>
@@ -2016,14 +2025,22 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
 
   useEffect(() => {
     if (showTutorial) {
-      Animated.loop(
+      // Reset animation to starting value
+      pulseAnim.setValue(1);
+
+      // Start the pulse animation loop
+      const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
           Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true })
         ])
-      ).start();
+      );
+      animation.start();
+
+      // Cleanup: stop animation when component unmounts or step changes
+      return () => animation.stop();
     }
-  }, [showTutorial]);
+  }, [showTutorial, tutorialStep]);
 
   if (!showTutorial) return null;
 
@@ -2068,8 +2085,8 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
     // Add Activity Spotlight
     // Adjusted: Wider box to ensure coverage
     // Forced "Default State" (Hero Card) during tutorial
-    // Lower by 1/8 block height (45/8 ~ 6px) -> 296 + 6 = 302
-    target = { x: width - 160, y: safeTop + 302, w: 140, h: 45 };
+    // Up by 1/16 block height (45/16 ~ 3px) -> 302 - 3 = 299
+    target = { x: width - 160, y: safeTop + 299, w: 140, h: 45 };
     title = "Add Activities";
     text = "Tap 'Add Activity' to build your extracurricular profile.";
     bubblePos = { top: target.y + 50, left: 20 };
@@ -2078,44 +2095,64 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
     text = "We'll analyze your activities to give you a Tier Rating (1-10).";
     bubblePos = { top: 300, alignSelf: 'center' };
   } else if (tutorialStep === 5) {
-    // Colleges (Was 7)
+    // Back to Dashboard - NEW STEP
+    // Back button is at top-left of editor (marginTop: 80 on container)
+    // Adjusted per user feedback: teeniest amount up and left
+    const backBtnY = safeTop + 37;
+    target = { x: 14, y: backBtnY, w: 80, h: 30 };
+    title = "Return to Dashboard";
+    text = "Tap 'Back' to return to your main dashboard.";
+    bubblePos = { top: backBtnY + 50, left: 20 };
+  } else if (tutorialStep === 6) {
+    // Colleges Nav (Was 5)
     const schoolX = navStartX + 92 - 25;
     target = { x: schoolX, y: navY - 5, w: 50, h: 50 };
     title = "College List";
     text = "Tap the School icon to search colleges.";
     bubblePos = { bottom: 120, alignSelf: 'center' };
-  } else if (tutorialStep === 6) {
-    // Colleges Expl (Was 8)
-    title = "College Chances";
-    text = "We compare your profile to admitted student data.";
-    bubblePos = { top: 200, alignSelf: 'center' };
   } else if (tutorialStep === 7) {
-    // Interview (Was 9)
+    // College Search Instruction - NEW STEP
+    title = "Search Colleges";
+    text = "Search up any college you want to check your chances in.";
+    bubblePos = { top: 200, alignSelf: 'center' };
+  } else if (tutorialStep === 8) {
+    // Colleges AI Expl (Was 7)
+    title = "AI College Chances";
+    text = "Let AI decide your chances based on your profile.";
+    bubblePos = { top: 200, alignSelf: 'center' };
+  } else if (tutorialStep === 9) {
+    // Interview Nav (Was 8)
     const intX = navStartX + 148 - 25;
     target = { x: intX, y: navY - 5, w: 50, h: 50 };
     title = "AI Interviewer";
     text = "Tap the Chat icon to practice interviewing.";
     bubblePos = { bottom: 120, marginLeft: 50 };
-  } else if (tutorialStep === 8) {
-    // Interview Expl (Was 10)
+  } else if (tutorialStep === 10) {
+    // Interview Expl (Was 9)
     title = "Interview Practice";
-    text = "Get real-time feedback on your answers.";
+    text = "Pick different colleges to get different interview styles and practice your answers.";
     bubblePos = { top: 200, alignSelf: 'center' };
-  } else if (tutorialStep === 9) {
-    // Export (Was 11)
+  } else if (tutorialStep === 11) {
+    // Export Nav (Was 10)
     const expX = navStartX + 204 - 25;
     target = { x: expX, y: navY - 5, w: 50, h: 50 };
     title = "Resume & Brag Sheet";
     text = "Tap the Download icon to generate documents.";
     bubblePos = { bottom: 120, right: 20 };
-  } else if (tutorialStep === 10) {
-    // Export Expl (Was 12)
+  } else if (tutorialStep === 12) {
+    // Export Expl (Was 11)
     title = "Export Tools";
     text = "Generate a formatted Resume or Brag Sheet instantly.";
-    bubblePos = { top: 200, alignSelf: 'center' };
+    bubblePos = { top: 480, alignSelf: 'center' };
+  } else if (tutorialStep === 13) {
+    // Tutorial Complete - Welcome Message
+    title = "Welcome to Pathway!";
+    text = "Your personalized path to college success starts here. 🎓";
+    bubblePos = { top: 300, alignSelf: 'center' };
+    showSkip = false; // Hide skip button on final screen
   }
 
-  const isBeforeInteraction = [1, 3, 5, 7, 9].includes(tutorialStep);
+  const isBeforeInteraction = [1, 3, 5, 6, 9, 11].includes(tutorialStep);
 
 
 
@@ -2131,18 +2168,19 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
       handleNewActivity?.();
       setTutorialStep(4);
     } else if (tutorialStep === 5) {
-      // Projects Add -> Explain
+      // Back to Dashboard - NEW
+      setView('dashboard');
       setTutorialStep(6);
-    } else if (tutorialStep === 7) {
-      // Colleges (Was 3)
+    } else if (tutorialStep === 6) {
+      // Colleges Nav (Was 5)
       setView('colleges');
-      setTutorialStep(8);
+      setTutorialStep(7);
     } else if (tutorialStep === 9) {
-      // Interview (Was 5)
+      // Interview Nav (Was 8)
       setView('interview');
       setTutorialStep(10);
     } else if (tutorialStep === 11) {
-      // Export (Was 7)
+      // Export Nav (Was 10)
       setView('export');
       setTutorialStep(12);
     }
@@ -2157,9 +2195,9 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
       // Small delay to ensure render cycle completes and Nav is visible before spotlight moves
       setTimeout(() => setTutorialStep(3), 150);
     }
-    // New Steps 3-6 flow naturally to next
+    // Steps 4, 7, 8, 10, 12 are text-only explanations that advance naturally
     else if (tutorialStep === 8) {
-      // From Colleges Expl to Interview Point
+      // From Colleges AI Expl to Interview Nav Point
       setTutorialStep(9);
     }
     else if (tutorialStep === 10) {
@@ -2168,11 +2206,15 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
       setTimeout(() => setTutorialStep(11), 150);
     }
     else if (tutorialStep === 12) {
-      handleTutorialNext(); // Ends tutorial
+      // From Export Expl to Welcome
+      setTutorialStep(13);
+    }
+    else if (tutorialStep === 13) {
+      // End of Tutorial - Welcome complete
+      handleTutorialSkip();
     }
     else {
-      // Fallback
-      handleTutorialNext();
+      setTutorialStep(tutorialStep + 1);
     }
   };
 
