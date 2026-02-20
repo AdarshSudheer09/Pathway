@@ -408,7 +408,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				OTHER_SWIFT_FLAGS = "";
+				OTHER_SWIFT_FLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.adarsh.PATHWAY;
 				PRODUCT_NAME = PATHWAY;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -532,7 +532,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				OTHER_SWIFT_FLAGS = "";
+				OTHER_SWIFT_FLAGS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.adarsh.PATHWAY;
 				PRODUCT_NAME = PATHWAY;
 				PROVISIONING_PROFILE_SPECIFIER = "";
