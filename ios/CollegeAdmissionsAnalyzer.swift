@@ -418,9 +418,12 @@ struct CollegeAdmissionsAnalyzer {
         var admissionsProbability = compositeScore * college.acceptanceDecimal
         
         // STEP 4: Apply difficulty-based adjustments
+        let hasTier1Or2 = activityTiers.contains { $0 <= 2 }
+        
         if college.difficulty == "Very Hard" {
             // T20 schools: penalize heavily for weak ECs
-            if ecScore < 70 {
+            // Exclude from penalty if they have at least 1 Tier 1-2 activity
+            if ecScore < 70 && !hasTier1Or2 {
                 admissionsProbability *= 0.6
             }
             // Cap maximum probability for T20

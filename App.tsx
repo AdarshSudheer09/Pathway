@@ -532,6 +532,11 @@ export default function App() {
   // College Search
   const [collegeSearch, setCollegeSearch] = useState("");
   const [collegeResults, setCollegeResults] = useState<string[]>([]);
+  const [expandedColleges, setExpandedColleges] = useState<Record<string, boolean>>({});
+
+  const toggleCollegeExpanded = (id: string) => {
+    setExpandedColleges(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Interview Active State
   const [isInterviewActive, setIsInterviewActive] = useState(false);
@@ -1410,46 +1415,54 @@ export default function App() {
                             <View style={s.aiBox}>
                               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <View>
-                                  <View style={s.rowGap}>
+                                  <TouchableOpacity
+                                    style={[s.rowGap, { alignItems: 'center', marginBottom: expandedColleges[col.id] ? 8 : 0 }]}
+                                    onPress={() => toggleCollegeExpanded(col.id)}
+                                  >
                                     <Text style={s.aiProb}>{col.analysis.category}: {col.analysis.probability}</Text>
-                                  </View>
+                                    <ChevronDown color="#a1a1aa" size={16} style={{ transform: [{ rotate: expandedColleges[col.id] ? '180deg' : '0deg' }], marginLeft: 8 }} />
+                                  </TouchableOpacity>
 
-                                  {/* Strengths Section */}
-                                  {col.analysis.strengths && col.analysis.strengths.length > 0 && (
-                                    <View style={{ marginTop: 12 }}>
-                                      <Text style={[s.feedbackTitle, { color: '#34d399', fontSize: 12, marginBottom: 6 }]}>✓ Strengths</Text>
-                                      {col.analysis.strengths.map((strength, idx) => (
-                                        <Text key={idx} style={[s.aiReason, { fontSize: 11, marginBottom: 4, color: '#a1a1aa' }]}>
-                                          • {strength}
-                                        </Text>
-                                      ))}
-                                    </View>
-                                  )}
+                                  {expandedColleges[col.id] && (
+                                    <>
+                                      {/* Strengths Section */}
+                                      {col.analysis.strengths && col.analysis.strengths.length > 0 && (
+                                        <View style={{ marginTop: 12 }}>
+                                          <Text style={[s.feedbackTitle, { color: '#34d399', fontSize: 12, marginBottom: 6 }]}>✓ Strengths</Text>
+                                          {col.analysis.strengths.map((strength, idx) => (
+                                            <Text key={idx} style={[s.aiReason, { fontSize: 11, marginBottom: 4, color: '#a1a1aa' }]}>
+                                              • {strength}
+                                            </Text>
+                                          ))}
+                                        </View>
+                                      )}
 
-                                  {/* Weaknesses Section */}
-                                  {col.analysis.weaknesses && col.analysis.weaknesses.length > 0 && (
-                                    <View style={{ marginTop: 10 }}>
-                                      <Text style={[s.feedbackTitle, { color: '#fbbf24', fontSize: 12, marginBottom: 6 }]}>⚠ Areas to Address</Text>
-                                      {col.analysis.weaknesses.map((weakness, idx) => (
-                                        <Text key={idx} style={[s.aiReason, { fontSize: 11, marginBottom: 4, color: '#a1a1aa' }]}>
-                                          • {weakness}
-                                        </Text>
-                                      ))}
-                                    </View>
-                                  )}
+                                      {/* Weaknesses Section */}
+                                      {col.analysis.weaknesses && col.analysis.weaknesses.length > 0 && (
+                                        <View style={{ marginTop: 10 }}>
+                                          <Text style={[s.feedbackTitle, { color: '#fbbf24', fontSize: 12, marginBottom: 6 }]}>⚠ Areas to Address</Text>
+                                          {col.analysis.weaknesses.map((weakness, idx) => (
+                                            <Text key={idx} style={[s.aiReason, { fontSize: 11, marginBottom: 4, color: '#a1a1aa' }]}>
+                                              • {weakness}
+                                            </Text>
+                                          ))}
+                                        </View>
+                                      )}
 
-                                  <Text style={[s.aiReason, { marginTop: 12 }]}>{col.analysis.reasoning}</Text>
+                                      <Text style={[s.aiReason, { marginTop: 12 }]}>{col.analysis.reasoning}</Text>
 
-                                  {/* Tips Section */}
-                                  {col.analysis.tips && col.analysis.tips.length > 0 && (
-                                    <View style={{ marginTop: 12 }}>
-                                      <Text style={[s.feedbackTitle, { color: '#60a5fa', fontSize: 12, marginBottom: 6 }]}>💡 Improvement Tips</Text>
-                                      {col.analysis.tips.map((tip, idx) => (
-                                        <Text key={idx} style={[s.aiReason, { fontSize: 11, marginBottom: 4, color: '#a1a1aa' }]}>
-                                          {idx + 1}. {tip}
-                                        </Text>
-                                      ))}
-                                    </View>
+                                      {/* Tips Section */}
+                                      {col.analysis.tips && col.analysis.tips.length > 0 && (
+                                        <View style={{ marginTop: 12 }}>
+                                          <Text style={[s.feedbackTitle, { color: '#60a5fa', fontSize: 12, marginBottom: 6 }]}>💡 Improvement Tips</Text>
+                                          {col.analysis.tips.map((tip, idx) => (
+                                            <Text key={idx} style={[s.aiReason, { fontSize: 11, marginBottom: 4, color: '#a1a1aa' }]}>
+                                              {idx + 1}. {tip}
+                                            </Text>
+                                          ))}
+                                        </View>
+                                      )}
+                                    </>
                                   )}
                                 </View>
                                 <TouchableOpacity onPress={() => handleAnalyzeCollege(col)} style={{ padding: 5 }}>
@@ -1461,17 +1474,19 @@ export default function App() {
                                 </TouchableOpacity>
                               </View>
 
-                              <TouchableOpacity
-                                style={s.recalcBtn}
-                                onPress={() => handleAnalyzeCollege(col)}
-                                disabled={aiAnalysisLoading === col.id}
-                              >
-                                {aiAnalysisLoading === col.id ? (
-                                  <ActivityIndicator color="#a1a1aa" size="small" />
-                                ) : (
-                                  <Text style={s.recalcBtnTxt}>Recalculate Chances</Text>
-                                )}
-                              </TouchableOpacity>
+                              {expandedColleges[col.id] && (
+                                <TouchableOpacity
+                                  style={s.recalcBtn}
+                                  onPress={() => handleAnalyzeCollege(col)}
+                                  disabled={aiAnalysisLoading === col.id}
+                                >
+                                  {aiAnalysisLoading === col.id ? (
+                                    <ActivityIndicator color="#a1a1aa" size="small" />
+                                  ) : (
+                                    <Text style={s.recalcBtnTxt}>Recalculate Chances</Text>
+                                  )}
+                                </TouchableOpacity>
+                              )}
                             </View>
                           ) : (
                             <TouchableOpacity style={s.analyzeBtn} onPress={() => handleAnalyzeCollege(col)} disabled={aiAnalysisLoading === col.id}>
