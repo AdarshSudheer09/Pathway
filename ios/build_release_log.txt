@@ -1,0 +1,35 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -workspace PATHWAY.xcworkspace -scheme PATHWAY -configuration Release -sdk iphonesimulator build
+
+Build settings from command line:
+    SDKROOT = iphonesimulator26.2
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, id:dvtdevice-DVTiOSDeviceSimulatorPlaceholder-iphonesimulator:placeholder, name:Any iOS Simulator Device }
+{ platform:iOS Simulator, arch:arm64, id:40558342-0FDB-46C7-B9C9-24D22E9FB822, OS:26.2, name:iPad (A16) }
+{ platform:iOS Simulator, arch:arm64, id:A5A8B200-CE86-4111-837F-0F8CCBFEECD5, OS:26.2, name:iPad Air 11-inch (M3) }
+{ platform:iOS Simulator, arch:arm64, id:A0276167-4D8F-40D2-9CE2-C13E5427B0D7, OS:26.2, name:iPad Air 13-inch (M3) }
+{ platform:iOS Simulator, arch:arm64, id:C2131AE3-CCA9-4B5F-A28F-8670619DB64D, OS:26.2, name:iPad Pro 11-inch (M5) }
+{ platform:iOS Simulator, arch:arm64, id:4664293E-7F74-4E80-92F9-641EA01DE966, OS:26.2, name:iPad Pro 13-inch (M5) }
+{ platform:iOS Simulator, arch:arm64, id:AD3715EA-F92D-470D-A33B-B6B5A487B714, OS:26.2, name:iPad mini (A17 Pro) }
+{ platform:iOS Simulator, arch:arm64, id:CACD13F5-5412-4E85-9874-D047069886FA, OS:26.2, name:iPhone 16e }
+{ platform:iOS Simulator, arch:arm64, id:F881D959-03AA-4A6A-B7AD-CB381229EAD2, OS:26.2, name:iPhone 17 }
+{ platform:iOS Simulator, arch:arm64, id:C3C9E4AF-72A6-447D-A59A-3F1A8E3CC7B6, OS:26.2, name:iPhone 17 Pro }
+{ platform:iOS Simulator, arch:arm64, id:07C7EDE3-1907-4E87-98C2-C8457F2FFB4A, OS:26.2, name:iPhone 17 Pro Max }
+{ platform:iOS Simulator, arch:arm64, id:70398EA9-4C50-4A92-8F1B-FA1DA1796849, OS:26.2, name:iPhone Air }
+{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], id:00008103-001C30283E23001E, name:My Mac }
+{ platform:iOS, id:dvtdevice-DVTiPhonePlaceholder-iphoneos:placeholder, name:Any iOS Device }
+{ platform:iOS, arch:arm64, id:00008140-000E4C610C93001C, name:Adarsh’s iPhone }
+Build Preparation
+Couldn't create workspace arena folder '/Users/adarshsudheer/Library/Developer/Xcode/DerivedData/PATHWAY-atgnjtcnmuqacrbasthynlynkfol': Unable to write to info file '<DVTFilePath:0xba9221860:'/Users/adarshsudheer/Library/Developer/Xcode/DerivedData/PATHWAY-atgnjtcnmuqacrbasthynlynkfol/info.plist'>'.
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	Building workspace PATHWAY with scheme PATHWAY and configuration Release
+(1 failure)
+2026-02-20 10:48:01.750 xcodebuild[3069:2422644] Error saving log: Error Domain=NSPOSIXErrorDomain Code=28 "No space left on device" UserInfo={NSFilePath=/Users/adarshsudheer/Library/Developer/Xcode/DerivedData/PATHWAY-atgnjtcnmuqacrbasthynlynkfol/Logs/Build/B4F8B9E1-2F85-433B-8616-9E9D1865E63F.xcactivitylog, NSLocalizedDescription=No space left on device} | User info: {
+    NSFilePath = "/Users/adarshsudheer/Library/Developer/Xcode/DerivedData/PATHWAY-atgnjtcnmuqacrbasthynlynkfol/Logs/Build/B4F8B9E1-2F85-433B-8616-9E9D1865E63F.xcactivitylog";
+    NSLocalizedDescription = "No space left on device";
+}

@@ -1142,7 +1142,7 @@ export default function App() {
                       db.setHasSeenTutorial(false);
                     }}
                   >
-                    <Text style={{ color: '#a1a1aa', fontSize: 12 }}>Restart Tutorial (Dev)</Text>
+                    <Text style={{ color: '#a1a1aa', fontSize: 12 }}>Restart Tutorial</Text>
                   </TouchableOpacity>
                 </View>
               )}
