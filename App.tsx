@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, ScrollView, TouchableOpacity,
-  TextInput, Alert, Dimensions, ActivityIndicator, Share, Modal, Animated
+  TextInput, Alert, Dimensions, ActivityIndicator, Share, Modal, Animated, Linking
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -31,66 +31,182 @@ const { width } = Dimensions.get('window');
 
 // Helper function to validate date ranges
 const validateDateRange = (startDate: string | undefined, endDate: string | undefined): boolean => {
-  if (!startDate || !endDate || endDate.toLowerCase().includes('present')) {
-    return true; // If either is missing or end is "Present", it's valid
-  }
-
-  const parseDate = (dateStr: string): Date => {
-    // Month name to number mapping (0-11 for JavaScript Date)
-    const monthMap: { [key: string]: number } = {
-      'january': 0, 'jan': 0,
-      'february': 1, 'feb': 1,
-      'march': 2, 'mar': 2,
-      'april': 3, 'apr': 3,
-      'may': 4,
-      'june': 5, 'jun': 5,
-      'july': 6, 'jul': 6,
-      'august': 7, 'aug': 7,
-      'september': 8, 'sep': 8, 'sept': 8,
-      'october': 9, 'oct': 9,
-      'november': 10, 'nov': 10,
-      'december': 11, 'dec': 11
-    };
-
-    const lowerStr = dateStr.toLowerCase().trim();
-    let month = 0; // Default to January
-    let year = 0;
-
-    // Try to find a month name
-    for (const [monthName, monthNum] of Object.entries(monthMap)) {
-      if (lowerStr.includes(monthName)) {
-        month = monthNum;
-        break;
-      }
-    }
-
-    // Extract year (4 digits)
-    const yearMatch = dateStr.match(/\d{4}/);
-    if (yearMatch) {
-      year = parseInt(yearMatch[0]);
-    }
-
-    // If we found a year, create a proper date with the month
-    if (year > 0) {
-      return new Date(year, month);
-    }
-
-    // Try to parse the date string directly
-    const parsed = new Date(dateStr);
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
-    }
-
-    return new Date(0); // Fallback to epoch
+  if (!startDate || !endDate || endDate === 'Present') return true;
+  
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  
+  const parseDate = (d: string) => {
+    const parts = d.trim().split(' ');
+    if (parts.length !== 2) return null;
+    const m = months.indexOf(parts[0]);
+    const y = parseInt(parts[1], 10);
+    if (m === -1 || isNaN(y)) return null;
+    return y * 12 + m;
   };
 
-  const start = parseDate(startDate);
-  const end = parseDate(endDate);
+  const sVal = parseDate(startDate);
+  const eVal = parseDate(endDate);
 
-  return end >= start;
+  if (sVal !== null && eVal !== null) {
+    return eVal >= sVal;
+  }
+  
+  return true;
 };
 
 // --- SUB-COMPONENTS (UI Only) ---
+
+const ComboBox = ({ label, value, onChange, options, placeholder }: any) => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  const filtered = options.filter((o: string) => o.toLowerCase().includes((value || '').toLowerCase()) && o.toLowerCase() !== (value || '').toLowerCase());
+
+  return (
+    <View style={{ marginBottom: 15, zIndex: showDropdown ? 10 : 1 }}>
+      {label && <Text style={s.label}>{label}</Text>}
+      <TextInput
+        style={[s.input, showDropdown && filtered.length > 0 ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 } : {}]}
+        value={value}
+        onChangeText={text => { onChange(text); setShowDropdown(true); }}
+        onFocus={() => setShowDropdown(true)}
+        placeholder={placeholder}
+        placeholderTextColor="#52525b"
+      />
+      {showDropdown && filtered.length > 0 && (
+         <View style={{ backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a', borderTopWidth: 0, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, overflow: 'hidden' }}>
+            {filtered.slice(0, 5).map((opt: string) => (
+               <TouchableOpacity key={opt} style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#27272a' }} onPress={() => { onChange(opt); setShowDropdown(false); }}>
+                  <Text style={{ color: '#fff', fontSize: 14 }}>{opt}</Text>
+               </TouchableOpacity>
+            ))}
+         </View>
+      )}
+    </View>
+  );
+};
+
+const ReviewModal = ({ visible, onClose }: any) => {
+  const [rating, setRating] = useState(0);
+
+  const handleSubmit = () => {
+    if (rating >= 4) {
+      Linking.openURL('itms-apps://itunes.apple.com/app/id6760678566?action=write-review').catch(() => {});
+    }
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ backgroundColor: '#18181b', padding: 24, borderRadius: 20, width: '85%', maxWidth: 340, borderWidth: 1, borderColor: '#27272a' }}>
+          <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>Enjoying Pathway?</Text>
+          <Text style={{ color: '#a1a1aa', textAlign: 'center', marginBottom: 25, lineHeight: 20 }}>
+            Tap a star to rate it on the App Store!
+          </Text>
+          
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 10, marginBottom: 30 }}>
+            {[1, 2, 3, 4, 5].map(star => (
+              <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                <Text style={{ fontSize: 36, color: star <= rating ? '#fbbf24' : '#3f3f46' }}>★</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity style={{ flex: 1, padding: 12, backgroundColor: '#27272a', borderRadius: 12, alignItems: 'center' }} onPress={onClose}>
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Not Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ flex: 1, padding: 12, backgroundColor: rating > 0 ? '#2563eb' : '#3f3f46', borderRadius: 12, alignItems: 'center' }} disabled={rating === 0} onPress={handleSubmit}>
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const MonthYearPicker = ({ value, onChange, placeholder }: any) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [tempMonth, setTempMonth] = useState('Jan');
+  const [tempYear, setTempYear] = useState(new Date().getFullYear().toString());
+  const [isPresent, setIsPresent] = useState(value === 'Present');
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const years = Array.from({length: new Date().getFullYear() - 2010 + 10}, (_, i) => (2010 + i).toString());
+
+  useEffect(() => {
+    if (modalVisible) {
+      if (value === 'Present') setIsPresent(true);
+      else if (value) {
+        setIsPresent(false);
+        const parts = value.split(' ');
+        if (parts.length === 2 && months.includes(parts[0])) {
+          setTempMonth(parts[0]);
+          setTempYear(parts[1]);
+        }
+      }
+    }
+  }, [modalVisible, value]);
+
+  const handleSave = () => {
+    if (isPresent) {
+      onChange('Present');
+    } else {
+      onChange(`${tempMonth} ${tempYear}`);
+    }
+    setModalVisible(false);
+  };
+
+  return (
+    <>
+      <TouchableOpacity style={[s.input, { height: 50, justifyContent: 'center' }]} onPress={() => setModalVisible(true)}>
+        <Text style={{ color: value ? '#fff' : '#52525b', fontSize: 16 }}>{value || placeholder}</Text>
+      </TouchableOpacity>
+
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: 20 }}>
+          <View style={{ backgroundColor: '#18181b', borderRadius: 20, padding: 24, width: '100%', maxWidth: 340, borderWidth: 1, borderColor: '#27272a' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' }}>Select Date</Text>
+            
+            <TouchableOpacity style={[s.input, isPresent && { borderColor: '#60a5fa', backgroundColor: '#1e1b4b' }, { marginBottom: 20 }]} onPress={() => setIsPresent(true)}>
+               <Text style={{ color: isPresent ? '#60a5fa' : '#fff', textAlign: 'center', fontWeight: isPresent ? 'bold' : 'normal' }}>Present</Text>
+            </TouchableOpacity>
+
+            <View style={{ opacity: isPresent ? 0.3 : 1 }} pointerEvents={isPresent ? 'none' : 'auto'}>
+              <View style={{ flexDirection: 'row', gap: 10, height: 200 }}>
+                {/* Months */}
+                <ScrollView style={{ flex: 1, borderWidth: 1, borderColor: '#27272a', borderRadius: 12 }} showsVerticalScrollIndicator={false}>
+                  {months.map(m => (
+                    <TouchableOpacity key={m} style={{ padding: 15, backgroundColor: tempMonth === m ? '#27272a' : 'transparent', borderRadius: 8 }} onPress={() => setTempMonth(m)}>
+                      <Text style={{ color: tempMonth === m ? '#fff' : '#a1a1aa', textAlign: 'center', fontWeight: tempMonth === m ? 'bold' : 'normal' }}>{m}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+                {/* Years */}
+                <ScrollView style={{ flex: 1, borderWidth: 1, borderColor: '#27272a', borderRadius: 12 }} showsVerticalScrollIndicator={false}>
+                  {years.map(y => (
+                    <TouchableOpacity key={y} style={{ padding: 15, backgroundColor: tempYear === y ? '#27272a' : 'transparent', borderRadius: 8 }} onPress={() => setTempYear(y)}>
+                      <Text style={{ color: tempYear === y ? '#fff' : '#a1a1aa', textAlign: 'center', fontWeight: tempYear === y ? 'bold' : 'normal' }}>{y}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+              <TouchableOpacity style={[s.actionBtn, { flex: 1, marginTop: 0, backgroundColor: '#27272a' }]} onPress={() => setModalVisible(false)}>
+                <Text style={{ color: '#fff' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.actionBtn, { flex: 1, marginTop: 0, backgroundColor: '#2563eb' }]} onPress={handleSave}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+};
 
 const TopBar = ({ setView, profile }: any) => {
   const insets = useSafeAreaInsets();
@@ -369,6 +485,9 @@ const InterviewSection = ({ profile, activities, onActiveChange, onBack }: any) 
           <>
             <View style={[s.chatHeader, isInputFocused && { marginTop: 15 }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity onPress={() => onBack?.()} style={{ marginRight: 5 }}>
+                  <ArrowLeft color="#a1a1aa" size={24} />
+                </TouchableOpacity>
                 <View style={[s.intAvatarSmall, { backgroundColor: selectedCollege.color }]}>
                   <Text style={s.intAvatarTxtSmall}>{selectedCollege.name.substring(0, 1)}</Text>
                 </View>
@@ -540,10 +659,7 @@ export default function App() {
 
   // Interview Active State
   const [isInterviewActive, setIsInterviewActive] = useState(false);
-
-  // Foundation Models capability
-  // Replaced by foundationSupported at the top
-
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
 
   // ScrollView ref for auto-scroll
   const scrollViewRef = useRef<ScrollView>(null);
@@ -580,29 +696,42 @@ export default function App() {
 
   // 3. HANDLERS
   const handleSaveActivity = async () => {
-    if (editingActivity) {
-      // Validate date range
-      if (!validateDateRange(editingActivity.startDate, editingActivity.endDate)) {
-        Alert.alert(
-          "Invalid Dates",
-          "End date cannot be before start date. Please check your dates.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
+    if (!editingActivity) return;
 
-      // Save activity with the current analysis if it exists
-      const activityToSave = impactAnalysis
-        ? { ...editingActivity, impactAnalysis }
-        : editingActivity;
-
-      await db.saveActivity(activityToSave);
-      refreshData();
-      navigateToView('dashboard');
-      setAiSuggestions([]);
-      setImpactAnalysis(null);
-      setAnalysisExpanded(true);
+    // Ensure minimal required fields are filled
+    if (!editingActivity.position?.trim() || !editingActivity.organization?.trim()) {
+      Alert.alert("Missing Information", "Please provide your Role/Position and Organization before saving.", [{ text: "OK" }]);
+      return;
     }
+
+    // Validate date range
+    if (!validateDateRange(editingActivity.startDate, editingActivity.endDate)) {
+      Alert.alert(
+        "Invalid Dates",
+        "End date cannot be before start date. Please check your dates.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    // Save activity with the current analysis if it exists
+    const activityToSave = impactAnalysis
+      ? { ...editingActivity, impactAnalysis }
+      : editingActivity;
+
+    await db.saveActivity(activityToSave);
+    
+    const hasSeenReview = await db.getHasSeenReview();
+    if (!hasSeenReview) {
+      setTimeout(() => setShowReviewPrompt(true), 500);
+      await db.setHasSeenReview(true);
+    }
+
+    refreshData();
+    navigateToView('dashboard');
+    setAiSuggestions([]);
+    setImpactAnalysis(null);
+    setAnalysisExpanded(true);
   };
 
   const handleDeleteActivity = (id: string) => {
@@ -621,6 +750,11 @@ export default function App() {
   // Project Handlers
   const handleSaveProject = async () => {
     if (editingProject) {
+      if (!editingProject.title?.trim() || !editingProject.description?.trim()) {
+        Alert.alert("Missing Information", "Please provide a Project Title and Description before saving.", [{ text: "OK" }]);
+        return;
+      }
+
       // Validate date range
       if (!validateDateRange(editingProject.startDate, editingProject.endDate)) {
         Alert.alert(
@@ -633,7 +767,7 @@ export default function App() {
 
       await db.saveProject(editingProject);
       refreshData();
-      navigateToView('dashboard');
+      setView('dashboard');
       setEditingProject(null);
     }
   };
@@ -1160,8 +1294,15 @@ export default function App() {
                   </TouchableOpacity>
 
                   <Text style={s.sectionTitle}>Core Details</Text>
+                  <ComboBox
+                    label="Activity Type"
+                    value={editingActivity.type}
+                    onChange={(t: string) => setEditingActivity({ ...editingActivity, type: t as ActivityType })}
+                    options={Object.values(ActivityType)}
+                    placeholder="e.g. Athletics"
+                  />
                   <Text style={s.label}>Role / Position</Text>
-                  <TextInput style={s.input} value={editingActivity.position} onChangeText={t => setEditingActivity({ ...editingActivity, position: t })} placeholder="Founder, Captain..." placeholderTextColor="#52525b" />
+                  <TextInput style={[s.input, { marginBottom: 15 }]} value={editingActivity.position} onChangeText={t => setEditingActivity({ ...editingActivity, position: t })} placeholder="Founder, Captain..." placeholderTextColor="#52525b" />
 
                   <Text style={s.label}>Organization</Text>
                   <TextInput style={s.input} value={editingActivity.organization} onChangeText={t => setEditingActivity({ ...editingActivity, organization: t })} placeholder="Club Name..." placeholderTextColor="#52525b" />
@@ -1182,11 +1323,11 @@ export default function App() {
                   <View style={[s.rowGap, { marginTop: 20 }]}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>Hours/Week</Text>
-                      <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.hoursPerWeek || '')} onChangeText={t => setEditingActivity({ ...editingActivity, hoursPerWeek: parseInt(t) || 0 })} />
+                      <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.hoursPerWeek || '')} onChangeText={t => setEditingActivity({ ...editingActivity, hoursPerWeek: parseInt(t.replace(/[^0-9]/g, '')) || 0 })} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>Weeks/Year</Text>
-                      <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.weeksPerYear || '')} onChangeText={t => setEditingActivity({ ...editingActivity, weeksPerYear: parseInt(t) || 0 })} />
+                      <TextInput style={s.input} keyboardType="numeric" value={String(editingActivity.weeksPerYear || '')} onChangeText={t => setEditingActivity({ ...editingActivity, weeksPerYear: parseInt(t.replace(/[^0-9]/g, '')) || 0 })} />
                     </View>
                   </View>
 
@@ -1194,22 +1335,18 @@ export default function App() {
                   <View style={s.rowGap}>
                     <View style={{ flex: 1 }}>
                       <Text style={[s.label, { fontSize: 10 }]}>Start Date</Text>
-                      <TextInput
-                        style={s.input}
+                      <MonthYearPicker
                         value={editingActivity.startDate || ''}
-                        onChangeText={t => setEditingActivity({ ...editingActivity, startDate: t })}
-                        placeholder="e.g., September 2021"
-                        placeholderTextColor="#52525b"
+                        onChange={(t: string) => setEditingActivity({ ...editingActivity, startDate: t })}
+                        placeholder="e.g., Sep 2021"
                       />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[s.label, { fontSize: 10 }]}>End Date</Text>
-                      <TextInput
-                        style={s.input}
+                      <MonthYearPicker
                         value={editingActivity.endDate || ''}
-                        onChangeText={t => setEditingActivity({ ...editingActivity, endDate: t })}
-                        placeholder="e.g., June 2024"
-                        placeholderTextColor="#52525b"
+                        onChange={(t: string) => setEditingActivity({ ...editingActivity, endDate: t })}
+                        placeholder="e.g., Jun 2024"
                       />
                     </View>
                   </View>
@@ -1327,11 +1464,19 @@ export default function App() {
                     <View style={s.rowGap}>
                       <View style={{ flex: 1 }}>
                         <Text style={[s.label, { fontSize: 10 }]}>Start</Text>
-                        <TextInput style={s.input} value={editingProject.startDate || ''} onChangeText={t => setEditingProject({ ...editingProject, startDate: t })} placeholder="Jan 2024" placeholderTextColor="#52525b" />
+                        <MonthYearPicker
+                          value={editingProject.startDate || ''}
+                          onChange={(t: string) => setEditingProject({ ...editingProject, startDate: t })}
+                          placeholder="Jan 2024"
+                        />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={[s.label, { fontSize: 10 }]}>End</Text>
-                        <TextInput style={s.input} value={editingProject.endDate || ''} onChangeText={t => setEditingProject({ ...editingProject, endDate: t })} placeholder="Present" placeholderTextColor="#52525b" />
+                        <MonthYearPicker
+                          value={editingProject.endDate || ''}
+                          onChange={(t: string) => setEditingProject({ ...editingProject, endDate: t })}
+                          placeholder="Present"
+                        />
                       </View>
                     </View>
 
@@ -1792,26 +1937,31 @@ export default function App() {
                     placeholder="e.g., Class of 2026"
                     placeholderTextColor="#52525b"
                   />
-                  <Text style={s.label}>Target Major</Text>
-                  <TextInput style={s.input} value={profile.targetMajor} onChangeText={t => setProfile({ ...profile, targetMajor: t })} />
+                  <ComboBox
+                    label="Target Major"
+                    value={profile.targetMajor}
+                    onChange={(t: string) => setProfile({ ...profile, targetMajor: t })}
+                    options={['Computer Science', 'Business', 'Engineering', 'Pre-Med', 'Humanities', 'Arts', 'Economics', 'Psychology', 'Biology', 'Political Science', 'Undecided']}
+                    placeholder="e.g. Computer Science"
+                  />
                   <Text style={s.label}>GPA (on a 4-point scale)</Text>
-                  <TextInput style={s.input} value={profile.gpa} onChangeText={t => setProfile({ ...profile, gpa: t })} />
-                  <Text style={s.label}>SAT</Text>
-                  <TextInput style={s.input} value={profile.satScore} onChangeText={t => setProfile({ ...profile, satScore: t })} />
+                  <TextInput style={s.input} keyboardType="decimal-pad" value={profile.gpa} onChangeText={t => setProfile({ ...profile, gpa: t.replace(/[^0-9.]/g, '') })} />
+                  <Text style={s.label}>SAT / ACT</Text>
+                  <TextInput style={s.input} keyboardType="numeric" value={profile.satScore} onChangeText={t => setProfile({ ...profile, satScore: t.replace(/[^0-9]/g, '') })} />
 
                   <Text style={s.sectionTitle}>Course Rigor</Text>
                   <View style={s.rowGap}>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>AP Classes</Text>
-                      <TextInput style={s.input} keyboardType="numeric" value={profile.apCount} onChangeText={t => setProfile({ ...profile, apCount: t })} placeholder="0" placeholderTextColor="#52525b" />
+                      <TextInput style={s.input} keyboardType="numeric" value={profile.apCount} onChangeText={t => setProfile({ ...profile, apCount: t.replace(/[^0-9]/g, '') })} placeholder="0" placeholderTextColor="#52525b" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>IB Classes</Text>
-                      <TextInput style={s.input} keyboardType="numeric" value={profile.ibCount} onChangeText={t => setProfile({ ...profile, ibCount: t })} placeholder="0" placeholderTextColor="#52525b" />
+                      <TextInput style={s.input} keyboardType="numeric" value={profile.ibCount} onChangeText={t => setProfile({ ...profile, ibCount: t.replace(/[^0-9]/g, '') })} placeholder="0" placeholderTextColor="#52525b" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.label}>Honors</Text>
-                      <TextInput style={s.input} keyboardType="numeric" value={profile.honorsCount} onChangeText={t => setProfile({ ...profile, honorsCount: t })} placeholder="0" placeholderTextColor="#52525b" />
+                      <TextInput style={s.input} keyboardType="numeric" value={profile.honorsCount} onChangeText={t => setProfile({ ...profile, honorsCount: t.replace(/[^0-9]/g, '') })} placeholder="0" placeholderTextColor="#52525b" />
                     </View>
                   </View>
 
@@ -1858,9 +2008,6 @@ export default function App() {
           </>
         )}
       </View>
-
-      {/* --- INTERACTIVE TUTORIAL OVERLAY --- */}
-      {/* --- SPOTLIGHT TUTORIAL OVERLAY --- */}
       <TutorialOverlay
         showTutorial={showTutorial}
         tutorialStep={tutorialStep}
@@ -1869,181 +2016,27 @@ export default function App() {
         handleTutorialSkip={handleTutorialSkip}
         view={view}
         setView={setView}
-        foundationSupported={foundationSupported}
         scrollToTop={scrollToTop}
         handleNewActivity={handleNewActivity}
       />
-      {false && (() => {
-        // --- COORDINATE CALCULATIONS ---
-        const { top: safeTop, bottom: safeBottom } = insets;
-
-        // Bottom Nav Constants
-        const NAV_WIDTH = 240; // (24 pad * 2) + (24 icon * 4) + (32 gap * 3) = 48 + 96 + 96 = 240
-        const NAV_Height = 50; // padding 12v + 24 icon ~= 48-50
-        const NAV_BOTTOM = 30;
-        const navStartX = (width - NAV_WIDTH) / 2;
-        const navY = Dimensions.get('window').height - NAV_BOTTOM - NAV_Height;
-
-        // Tab X Centers (approximate based on gap 32)
-        // Items: [Home] -32- [School] -32- [Interview] -32- [Start]
-        // Home Center: Pad(24) + IconHalf(12) = 36
-        // School Center: 36 + 24/2 + 32 + 24/2 = 36 + 56 = 92
-        // Interview Center: 92 + 56 = 148
-
-        // Targets
-        let target = { x: 0, y: 0, w: 0, h: 0 };
-        let bubblePos: any = {};
-        let text = "";
-        let title = "";
-
-        if (tutorialStep === 0) {
-          // Welcome Modal - No Spotlight
-        } else if (tutorialStep === 1) {
-          // Profile (Top Right)
-          // Approx based on header styles
-          target = { x: width - 100, y: safeTop + 10, w: 80, h: 40 };
-          title = "Your Profile";
-          text = "Tap here to edit your GPA, Test Scores, and Major.";
-          bubblePos = { top: target.y + 60, right: 20 };
-        } else if (tutorialStep === 2) {
-          // Profile Explanation (No Spotlight, standard box)
-          title = "Your Profile";
-          text = "Enter your stats here for accurate AI analysis.";
-          bubblePos = { bottom: 120, alignSelf: 'center' };
-        } else if (tutorialStep === 3) {
-          // Activities -> Point to Home Tab
-          const homeX = navStartX + 36 - 20; // -20 to center a 40px box
-          target = { x: homeX, y: navY, w: 40, h: 40 };
-          title = "Dashboard";
-          text = "Scroll down on the Dashboard to add your Activities.";
-          bubblePos = { bottom: 100, left: 20 };
-        } else if (tutorialStep === 4) {
-          // Activities Explanation
-          title = "Extracurriculars";
-          text = "Add activities to get a Tier Rating (1-10) and impact analysis.";
-          bubblePos = { top: 150, alignSelf: 'center' };
-        } else if (tutorialStep === 5) {
-          // Colleges Tab
-          const schoolX = navStartX + 92 - 20;
-          target = { x: schoolX, y: navY, w: 40, h: 40 };
-          title = "College List";
-          text = "Tap here to search colleges and see your admission chances.";
-          bubblePos = { bottom: 100, alignSelf: 'center' };
-        } else if (tutorialStep === 6) {
-          // College Explanation
-          title = "College Chances";
-          text = "We compare your profile to admitted student data.";
-          bubblePos = { top: 150, alignSelf: 'center' };
-        } else if (tutorialStep === 7) {
-          // Interview Tab
-          const intX = navStartX + 148 - 20;
-          target = { x: intX, y: navY, w: 40, h: 40 };
-          title = "AI Interviewer";
-          text = "Tap here to practice with our AI coach.";
-          bubblePos = { bottom: 100, marginLeft: 50 }; // Offset
-        } else if (tutorialStep === 8) {
-          // Interview Explanation
-          title = "Interview Practice";
-          text = "Get real-time feedback on your answers.";
-          bubblePos = { top: 150, alignSelf: 'center' };
-        }
-
-        const isBeforeInteraction = [1, 3, 5, 7].includes(tutorialStep);
-
-        return (
-          <View style={s.tutorialOverlay} pointerEvents="box-none">
-            {/* --- MASK LAYERS (Dim everything except target) --- */}
-            {isBeforeInteraction && (
-              <>
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: target.y, backgroundColor: 'rgba(0,0,0,0.7)' }} />
-                <View style={{ position: 'absolute', top: target.y + target.h, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)' }} />
-                <View style={{ position: 'absolute', top: target.y, left: 0, width: target.x, height: target.h, backgroundColor: 'rgba(0,0,0,0.7)' }} />
-                <View style={{ position: 'absolute', top: target.y, left: target.x + target.w, right: 0, height: target.h, backgroundColor: 'rgba(0,0,0,0.7)' }} />
-
-                {/* Highlight Glow Border */}
-                <View style={{
-                  position: 'absolute',
-                  top: target.y - 4, left: target.x - 4,
-                  width: target.w + 8, height: target.h + 8,
-                  borderRadius: 12,
-                  borderWidth: 2, borderColor: '#60a5fa',
-                  shadowColor: '#60a5fa', shadowOpacity: 0.8, shadowRadius: 10, elevation: 10
-                }} pointerEvents="none" />
-              </>
-            )}
-
-            {/* --- CONTENT BUBBLES --- */}
-            {tutorialStep === 0 ? (
-              <View style={[s.tutorialBox, { marginTop: '60%', alignSelf: 'center', backgroundColor: '#fff' }]}>
-                <Text style={s.tutorialTitle}>Welcome to Pathway!</Text>
-                <Text style={s.tutorialText}>Let's take a quick interactive tour. Follow the spotlight to explore the app.</Text>
-                <TouchableOpacity style={s.tutorialNextBtn} onPress={() => setTutorialStep(1)}>
-                  <Text style={s.tutorialNextTxt}>Start Tour</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={[
-                isBeforeInteraction ? s.tutorialBubble : s.tutorialBox,
-                bubblePos
-              ]}>
-                {!isBeforeInteraction && <Text style={s.tutorialTitle}>{title}</Text>}
-                <Text style={isBeforeInteraction ? s.bubbleText : s.tutorialText}>{text}</Text>
-
-                {!isBeforeInteraction && (
-                  <TouchableOpacity style={s.tutorialNextBtn} onPress={handleTutorialNext}>
-                    <Text style={s.tutorialNextTxt}>{tutorialStep === 8 ? "Finish" : "Next"}</Text>
-                  </TouchableOpacity>
-                )}
-
-                {/* Explicit Next button for "Explain" steps that aren't auto-advanced by view change? 
-                          Actually my current logic auto-advances on view change for even numbers? 
-                          No, logic matches:
-                          Odds (1,3,5,7) = Pointing (Wait for Click).
-                          Evens (2,4,6,8) = Explaining (Wait for Next).
-                      */}
-                {(tutorialStep === 2 || tutorialStep === 4 || tutorialStep === 6) && (
-                  <TouchableOpacity style={[s.tutorialNextBtn, { marginTop: 10 }]} onPress={() => setTutorialStep(tutorialStep + 1)}>
-                    <Text style={s.tutorialNextTxt}>Next</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
-            {/* Skip */}
-            {tutorialStep > 0 && (
-              <TouchableOpacity style={{ position: 'absolute', top: safeTop + 10, left: 20, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 }} onPress={handleTutorialSkip}>
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>Exit</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        );
-
-      })()}
-
+      <ReviewModal visible={showReviewPrompt} onClose={() => setShowReviewPrompt(false)} />
     </SafeAreaProvider >
   );
 }
 
-
-
-const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTutorialNext, handleTutorialSkip, view, setView, foundationSupported, scrollToTop, handleNewActivity }: any) => {
+const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTutorialSkip, view, setView, scrollToTop, handleNewActivity }: any) => {
   const insets = useSafeAreaInsets();
-  // Animation State
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Scroll to top when tutorial starts or steps change to Dashboard
   useEffect(() => {
     if (showTutorial && (tutorialStep === 3 || tutorialStep === 11)) {
       scrollToTop?.();
     }
-  }, [tutorialStep, showTutorial]);
+  }, [tutorialStep, showTutorial, scrollToTop]);
 
   useEffect(() => {
     if (showTutorial) {
-      // Reset animation to starting value
       pulseAnim.setValue(1);
-
-      // Start the pulse animation loop
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.1, duration: 800, useNativeDriver: true }),
@@ -2051,204 +2044,127 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
         ])
       );
       animation.start();
-
-      // Cleanup: stop animation when component unmounts or step changes
       return () => animation.stop();
     }
-  }, [showTutorial, tutorialStep]);
+  }, [showTutorial, tutorialStep, pulseAnim]);
 
   if (!showTutorial) return null;
 
-  // --- COORDINATE CALCULATIONS ---
-  const { top: safeTop, bottom: safeBottom } = insets;
+  const { top: safeTop } = insets;
   const width = Dimensions.get('window').width;
   const height = Dimensions.get('window').height;
 
-  // Bottom Nav Constants
   const NAV_WIDTH = 240;
   const NAV_Height = 50;
   const NAV_BOTTOM = 30;
   const navStartX = (width - NAV_WIDTH) / 2;
-  const navY = height - NAV_BOTTOM - NAV_Height;
+  const navY = height - NAV_BOTTOM - NAV_Height - 10;
 
-  // Targets
   let target = { x: 0, y: 0, w: 0, h: 0 };
   let bubblePos: any = {};
   let text = "";
   let title = "";
   let showSkip = true;
 
-
-
-
   if (tutorialStep === 0) {
-    // Welcome Modal
     showSkip = false;
   } else if (tutorialStep === 1) {
-    // Profile Button
     const btnWidth = 100;
-    // Adjusted: Lowered slightly from +2 to +6
-    target = { x: width - btnWidth - 20, y: safeTop + 6, w: btnWidth, h: 40 };
+    target = { x: width - btnWidth - 25, y: safeTop + 8, w: btnWidth + 10, h: 42 };
     title = "Your Profile";
     text = "Tap here to edit your GPA, Test Scores, and Major.";
-    bubblePos = { top: target.y + 50, right: 20 };
+    bubblePos = { top: target.y + 60, right: 20 };
   } else if (tutorialStep === 2) {
     title = "Your Profile";
     text = "Enter your stats here for accurate AI analysis.";
-    bubblePos = { top: 180, alignSelf: 'center', marginHorizontal: 20 };
+    bubblePos = { top: 120, alignSelf: 'center', marginHorizontal: 20 };
   } else if (tutorialStep === 3) {
-    // Add Activity Spotlight
-    // Adjusted: Wider box to ensure coverage
-    // Forced "Default State" (Hero Card) during tutorial
-    // Up by 1/16 block height (45/16 ~ 3px) -> 302 - 3 = 299
-    target = { x: width - 160, y: safeTop + 299, w: 140, h: 45 };
+    const heroCardY = safeTop + 70 + 175; // Approx add activity wrapper
+    target = { x: width / 2 - 85, y: heroCardY + 20, w: 170, h: 45 };
     title = "Add Activities";
-    text = "Tap 'Add Activity' to build your extracurricular profile.";
-    bubblePos = { top: target.y + 50, left: 20 };
+    text = "Scroll down on the Dashboard to add your Activities.";
+    bubblePos = { top: target.y + 60, alignSelf: 'center' };
   } else if (tutorialStep === 4) {
     title = "Track Your Impact";
     text = "We'll analyze your activities to give you a Tier Rating (1-10).";
-    bubblePos = { top: 300, alignSelf: 'center' };
+    bubblePos = { top: 200, alignSelf: 'center' };
   } else if (tutorialStep === 5) {
-    // Back to Dashboard - NEW STEP
-    // Back button is at top-left of editor (marginTop: 80 on container)
-    // Adjusted per user feedback: teeniest amount up and left
-    const backBtnY = safeTop + 37;
-    target = { x: 14, y: backBtnY, w: 80, h: 30 };
+    target = { x: 10, y: safeTop + 35, w: 60, h: 40 };
     title = "Return to Dashboard";
     text = "Tap 'Back' to return to your main dashboard.";
-    bubblePos = { top: backBtnY + 50, left: 20 };
+    bubblePos = { top: target.y + 60, left: 20 };
   } else if (tutorialStep === 6) {
-    // Colleges Nav (Was 5)
     const schoolX = navStartX + 92 - 25;
-    target = { x: schoolX, y: navY - 5, w: 50, h: 50 };
+    target = { x: schoolX, y: navY, w: 50, h: 50 };
     title = "College List";
-    text = "Tap the School icon to search colleges.";
+    text = "Tap the School icon below to search colleges.";
     bubblePos = { bottom: 120, alignSelf: 'center' };
   } else if (tutorialStep === 7) {
-    // College Search Instruction - NEW STEP
     title = "Search Colleges";
     text = "Search up any college you want to check your chances in.";
-    bubblePos = { top: 200, alignSelf: 'center' };
+    bubblePos = { top: 150, alignSelf: 'center' };
   } else if (tutorialStep === 8) {
-    // Colleges AI Expl (Was 7)
     title = "AI College Chances";
     text = "Let AI decide your chances based on your profile.";
-    bubblePos = { top: 200, alignSelf: 'center' };
+    bubblePos = { top: 150, alignSelf: 'center' };
   } else if (tutorialStep === 9) {
-    // Interview Nav (Was 8)
     const intX = navStartX + 148 - 25;
-    target = { x: intX, y: navY - 5, w: 50, h: 50 };
+    target = { x: intX, y: navY, w: 50, h: 50 };
     title = "AI Interviewer";
-    text = "Tap the Chat icon to practice interviewing.";
+    text = "Tap the Chat icon below to practice interviewing.";
     bubblePos = { bottom: 120, marginLeft: 50 };
   } else if (tutorialStep === 10) {
-    // Interview Expl (Was 9)
     title = "Interview Practice";
     text = "Pick different colleges to get different interview styles and practice your answers.";
-    bubblePos = { top: 200, alignSelf: 'center' };
+    bubblePos = { top: 150, alignSelf: 'center' };
   } else if (tutorialStep === 11) {
-    // Export Nav (Was 10)
     const expX = navStartX + 204 - 25;
-    target = { x: expX, y: navY - 5, w: 50, h: 50 };
+    target = { x: expX, y: navY, w: 50, h: 50 };
     title = "Resume & Brag Sheet";
-    text = "Tap the Download icon to generate documents.";
+    text = "Tap the Download icon below to generate documents.";
     bubblePos = { bottom: 120, right: 20 };
   } else if (tutorialStep === 12) {
-    // Export Expl (Was 11)
     title = "Export Tools";
     text = "Generate a formatted Resume or Brag Sheet instantly.";
-    bubblePos = { top: 480, alignSelf: 'center' };
+    bubblePos = { top: 380, alignSelf: 'center' };
   } else if (tutorialStep === 13) {
-    // Tutorial Complete - Welcome Message
     title = "Welcome to Pathway!";
     text = "Your personalized path to college success starts here. 🎓";
-    bubblePos = { top: 300, alignSelf: 'center' };
-    showSkip = false; // Hide skip button on final screen
+    bubblePos = { top: 250, alignSelf: 'center' };
+    showSkip = false;
   }
 
   const isBeforeInteraction = [1, 3, 5, 6, 9, 11].includes(tutorialStep);
 
-
-
-  // Explicit Navigation Handler to ensure step advances
   const handleInteraction = () => {
-    if (tutorialStep === 1) {
-      // Profile
-      setView('profile');
-      setTutorialStep(2);
-    } else if (tutorialStep === 3) {
-      // Activities Add -> Editor
-      // Trigger the actual Add Activity flow
-      handleNewActivity?.();
-      setTutorialStep(4);
-    } else if (tutorialStep === 5) {
-      // Back to Dashboard - NEW
-      setView('dashboard');
-      setTutorialStep(6);
-    } else if (tutorialStep === 6) {
-      // Colleges Nav (Was 5)
-      setView('colleges');
-      setTutorialStep(7);
-    } else if (tutorialStep === 9) {
-      // Interview Nav (Was 8)
-      setView('interview');
-      setTutorialStep(10);
-    } else if (tutorialStep === 11) {
-      // Export Nav (Was 10)
-      setView('export');
-      setTutorialStep(12);
-    }
+    if (tutorialStep === 1) { setView('profile'); setTutorialStep(2); }
+    else if (tutorialStep === 3) { handleNewActivity?.(); setTutorialStep(4); }
+    else if (tutorialStep === 5) { setView('dashboard'); setTutorialStep(6); }
+    else if (tutorialStep === 6) { setView('colleges'); setTutorialStep(7); }
+    else if (tutorialStep === 9) { setView('interview'); setTutorialStep(10); }
+    else if (tutorialStep === 11) { setView('export'); setTutorialStep(12); }
   };
 
-  // Custom "Next" logic for dynamic flow
   const handleNextStep = async () => {
-    // Navigating AWAY from Profile if needed
-    if (tutorialStep === 2) {
-      // Must set view to dashboard FIRST to ensure BottomNav is rendered
-      setView('dashboard');
-      // Small delay to ensure render cycle completes and Nav is visible before spotlight moves
-      setTimeout(() => setTutorialStep(3), 150);
-    }
-    // Steps 4, 7, 8, 10, 12 are text-only explanations that advance naturally
-    else if (tutorialStep === 8) {
-      // From Colleges AI Expl to Interview Nav Point
-      setTutorialStep(9);
-    }
-    else if (tutorialStep === 10) {
-      // Exit Interview view to ensure Bottom Nav is clear (chat input might cover it)
-      setView('dashboard');
-      setTimeout(() => setTutorialStep(11), 150);
-    }
-    else if (tutorialStep === 12) {
-      // From Export Expl to Welcome
-      setTutorialStep(13);
-    }
-    else if (tutorialStep === 13) {
-      // End of Tutorial - Welcome complete
-      handleTutorialSkip();
-    }
-    else {
-      setTutorialStep(tutorialStep + 1);
-    }
+    if (tutorialStep === 2) { setView('dashboard'); setTimeout(() => setTutorialStep(3), 150); }
+    else if (tutorialStep === 8) { setTutorialStep(9); }
+    else if (tutorialStep === 10) { setView('dashboard'); setTimeout(() => setTutorialStep(11), 150); }
+    else if (tutorialStep === 12) { setTutorialStep(13); }
+    else if (tutorialStep === 13) { handleTutorialSkip(); }
+    else { setTutorialStep(tutorialStep + 1); }
   };
-
 
   return (
     <View style={s.tutorialOverlay} pointerEvents="box-none">
-      {/* --- MASK LAYERS --- */}
+      <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={handleTutorialSkip} />
+
       {isBeforeInteraction && (
-        <>
-          {/* Top Mask */}
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: target.y, backgroundColor: 'rgba(0,0,0,0.7)' }} />
-          {/* Bottom Mask */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: Math.max(0, target.y), backgroundColor: 'rgba(0,0,0,0.7)' }} />
           <View style={{ position: 'absolute', top: target.y + target.h, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)' }} />
-          {/* Left Mask */}
-          <View style={{ position: 'absolute', top: target.y, left: 0, width: target.x, height: target.h, backgroundColor: 'rgba(0,0,0,0.7)' }} />
-          {/* Right Mask */}
+          <View style={{ position: 'absolute', top: target.y, left: 0, width: Math.max(0, target.x), height: target.h, backgroundColor: 'rgba(0,0,0,0.7)' }} />
           <View style={{ position: 'absolute', top: target.y, left: target.x + target.w, right: 0, height: target.h, backgroundColor: 'rgba(0,0,0,0.7)' }} />
 
-          {/* Highlight Glow Border with Pulse - NOW CLICKABLE */}
           <Animated.View style={{
             position: 'absolute',
             top: target.y - 4, left: target.x - 4,
@@ -2257,50 +2173,52 @@ const TutorialOverlay = ({ showTutorial, tutorialStep, setTutorialStep, handleTu
             borderWidth: 3, borderColor: '#60a5fa',
             shadowColor: '#60a5fa', shadowOpacity: 0.8, shadowRadius: 10, elevation: 10,
             transform: [{ scale: pulseAnim }],
-            zIndex: 99999 // Ensure it catches taps
-          }}>
-            <TouchableOpacity style={{ flex: 1 }} onPress={handleInteraction} />
-          </Animated.View>
-        </>
+            zIndex: 99999
+          }} />
+        </View>
       )}
 
-      {/* --- CONTENT BUBBLES --- */}
-      {tutorialStep === 0 ? (
-        <View style={[s.tutorialBox, { marginTop: '60%', alignSelf: 'center', backgroundColor: '#fff' }]}>
-          <Text style={s.tutorialTitle}>Welcome to Pathway!</Text>
-          <Text style={s.tutorialText}>Let's take a quick interactive tour. Follow the spotlight to explore the app.</Text>
-          <TouchableOpacity style={s.tutorialNextBtn} onPress={() => setTutorialStep(1)}>
-            <Text style={s.tutorialNextTxt}>Start Tour</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={[
-          isBeforeInteraction ? s.tutorialBubble : s.tutorialBox,
-          bubblePos
-        ]}>
-          {!isBeforeInteraction && <Text style={s.tutorialTitle}>{title}</Text>}
-          <Text style={isBeforeInteraction ? s.bubbleText : s.tutorialText}>{text}</Text>
+      {isBeforeInteraction && (
+         <TouchableOpacity style={{ position: 'absolute', top: target.y - 4, left: target.x - 4, width: target.w + 8, height: target.h + 8, zIndex: 100000 }} onPress={handleInteraction} />
+      )}
 
-          <View style={s.tutorialBtnRow}>
-            {/* Exit Button INSIDE Bubbles */}
-            {showSkip && (
-              <TouchableOpacity onPress={handleTutorialSkip} style={{ marginRight: 20 }}>
-                <Text style={isBeforeInteraction ? { color: 'rgba(255,255,255,0.7)', fontSize: 12 } : s.tutorialSkip}>Exit Tutorial</Text>
-              </TouchableOpacity>
-            )}
-
-            {!isBeforeInteraction && (
-              <TouchableOpacity style={s.tutorialNextBtn} onPress={handleNextStep}>
-                <Text style={s.tutorialNextTxt}>{tutorialStep === 12 ? "Finish" : "Next"}</Text>
-              </TouchableOpacity>
-            )}
+      <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { zIndex: 100 }]}>
+        {tutorialStep === 0 ? (
+          <View style={[s.tutorialBox, { marginTop: '60%', alignSelf: 'center', backgroundColor: '#fff' }]}>
+            <Text style={s.tutorialTitle}>Welcome to Pathway!</Text>
+            <Text style={s.tutorialText}>Let's take a quick interactive tour. Follow the spotlight to explore the app.</Text>
+            <TouchableOpacity style={s.tutorialNextBtn} onPress={() => setTutorialStep(1)}>
+              <Text style={s.tutorialNextTxt}>Start Tour</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      )}
+        ) : (
+          <View style={[
+            isBeforeInteraction ? s.tutorialBubble : s.tutorialBox,
+            bubblePos,
+            { position: 'absolute' }
+          ]}>
+            {!isBeforeInteraction && <Text style={s.tutorialTitle}>{title}</Text>}
+            <Text style={isBeforeInteraction ? s.bubbleText : s.tutorialText}>{text}</Text>
+
+            <View style={s.tutorialBtnRow}>
+              {showSkip && (
+                <TouchableOpacity onPress={handleTutorialSkip} style={{ marginRight: 20 }}>
+                  <Text style={isBeforeInteraction ? { color: 'rgba(255,255,255,0.7)', fontSize: 12 } : s.tutorialSkip}>Exit Tutorial</Text>
+                </TouchableOpacity>
+              )}
+
+              {!isBeforeInteraction && (
+                <TouchableOpacity style={s.tutorialNextBtn} onPress={handleNextStep}>
+                  <Text style={s.tutorialNextTxt}>{tutorialStep === 13 ? "Finish" : "Next"}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
     </View>
   );
 };
-
 // --- STYLES ---
 
 const s = StyleSheet.create({
@@ -2417,9 +2335,9 @@ const s = StyleSheet.create({
   input: { backgroundColor: '#09090b', borderWidth: 1, borderColor: '#27272a', borderRadius: 12, padding: 14, color: '#fff', fontSize: 16 },
   textArea: { height: 120, textAlignVertical: 'top' },
   rowGap: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  gradeBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#27272a', justifyContent: 'center', alignItems: 'center' },
-  gradeBtnActive: { backgroundColor: '#fff' },
-  gradeBtnTxt: { color: '#52525b', fontWeight: 'bold' },
+  gradeBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#18181b', borderWidth: 1, borderColor: '#3f3f46', justifyContent: 'center', alignItems: 'center' },
+  gradeBtnActive: { backgroundColor: '#fff', borderColor: '#fff' },
+  gradeBtnTxt: { color: '#a1a1aa', fontWeight: 'bold' },
   gradeBtnTxtActive: { color: '#000' },
   aiIconBtn: { position: 'absolute', bottom: 10, right: 10, padding: 8, backgroundColor: 'rgba(37,99,235,0.1)', borderRadius: 8 },
   actionBtn: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, backgroundColor: '#2e1065', padding: 14, borderRadius: 12, marginTop: 20 },

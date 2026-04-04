@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   COLLEGES: 'pathway_colleges',
   PROJECTS: 'pathway_projects',
   HAS_SEEN_TUTORIAL: 'pathway_has_seen_tutorial',
+  HAS_SEEN_REVIEW: 'pathway_has_seen_review_v3',
 };
 
 class DatabaseService {
@@ -154,6 +155,16 @@ class DatabaseService {
 
   async setHasSeenTutorial(hasSeen: boolean): Promise<void> {
     await this.setItem(STORAGE_KEYS.HAS_SEEN_TUTORIAL, hasSeen);
+  }
+
+  // --- Review Prompt State ---
+  async getHasSeenReview(): Promise<boolean> {
+    const val = await this.getItem(STORAGE_KEYS.HAS_SEEN_REVIEW);
+    return val === true;
+  }
+
+  async setHasSeenReview(hasSeen: boolean): Promise<void> {
+    await this.setItem(STORAGE_KEYS.HAS_SEEN_REVIEW, hasSeen);
   }
 
   // --- Utility to Seed Data ---
